@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+
+<!-- USEFUL LINKS TO CONFIGURE LOG4J2 :
+LOG4J2 IN MAVEN PROJECT >> https://www.dataset.com/blog/maven-log4j2-project/
+Spring Boot Log4j2.properties Example >> https://howtodoinjava.com/spring-boot/spring-boot-log4j2-properties/
+Spring Boot Log4j2.xml Example >> https://howtodoinjava.com/spring-boot/spring-boot-log4j2-config/
+https://howtodoinjava.com/log4j2/log4j2-properties-example/
+https://howtodoinjava.com/java/delete-logs-on-rollover/ >> Delete Old Logs on Rollover (XML && PROPERTIES CONFIG) [XML WORKS | PROPERTIES DOESN'T WORK]
+https://stackoverflow.com/questions/46236655/log4j2-2-6-delete-logs-automatically >> Delete Old Logs on Rollover ......
+How does Log4j2 DefaultRolloverStrategy's max attribute really work?: https://stackoverflow.com/questions/24551768/how-does-log4j2-defaultrolloverstrategys-max-attribute-really-work
+Log4j2 RollingFileAppender Example (XML + PROPERTIES config) >>https://howtodoinjava.com/log4j2/log4j2-rollingfileappender-example/
+ -->
+
+<Configuration status="INFO">
+
+    <!-- All variables are configured inside <Properties> section | DO NOT TOUCH other tags -->
+    <Properties>
+        <Property name="LOGS_BASE_PATH">@LOGS_BASE_PATH@</Property>
+        <Property name="LOGFILE_NAME">@LOGFILE_NAME@</Property>
+        <Property name="DELETE_LOGS_OLDER_THAN_X_DAYS">@DELETE_LOGS_OLDER_THAN_X_DAYS@</Property>
+        <Property name="LOG_FILE_SIZE">@LOG_FILE_SIZE@</Property>
+        <Property name="LOGS_PATTERN">@LOGS_PATTERN@</Property>
+    </Properties>
+
+
+    <!-- DO NOT TOUCH THIS SECTION -->
+    <Appenders>
+        <!-- Console appender configuration -->
+        <Console name="ConsoleAppender" target="SYSTEM_OUT" follow="true">
+            <PatternLayout pattern="${LOGS_PATTERN}"/>
+        </Console>
+
+        <!-- File appender configuration -->
+        <RollingFile name="FileAppender" fileName="${LOGS_BASE_PATH}/${LOGFILE_NAME}" filePattern="${LOGS_BASE_PATH}/${LOGFILE_NAME}_%d{yyyyMMdd}-%i.log.gz" ignoreExceptions="false">
+            <PatternLayout pattern="${LOGS_PATTERN}"/>
+            <Policies>
+                <OnStartupTriggeringPolicy/>
+                <!-- UNCOMMENT IF NEEDED | <SizeBasedTriggeringPolicy size="${LOG_FILE_SIZE}"/>-->
+                <TimeBasedTriggeringPolicy/>
+            </Policies>
+
+            <!-- strategy to delete old log files at rolling time | LINK >> How does Log4j2 DefaultRolloverStrategy's max attribute really work?: https://stackoverflow.com/questions/24551768/how-does-log4j2-defaultrolloverstrategys-max-attribute-really-work-->
+            <DefaultRolloverStrategy>
+                <Delete basePath="${LOGS_BASE_PATH}" maxDepth="2">
+                    <IfLastModified age="P${DELETE_LOGS_OLDER_THAN_X_DAYS}D"/>
+                </Delete>
+            </DefaultRolloverStrategy>
+        </RollingFile>
+    </Appenders>
+
+    <Loggers>
+        <Logger name="com.sahelys.payBridge" level="info" additivity="false">
+            <AppenderRef ref="ConsoleAppender"/>
+            <AppenderRef ref="FileAppender"/>
+        </Logger>
+
+        <Logger name="org.springframework.boot" level="error" additivity="false">
+            <AppenderRef ref="ConsoleAppender"/>
+        </Logger>
+
+        <Root level="info">
+            <AppenderRef ref="ConsoleAppender"/>
+            <AppenderRef ref="FileAppender"/>
+        </Root>
+    </Loggers>
+</Configuration>

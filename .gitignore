@@ -1,0 +1,52 @@
+HELP.md
+target/
+.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+build/
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+### VS Code ###
+.vscode/
+
+### Runtime and local environment ###
+*.log
+logs/
+${logsBaseDir}/
+.env
+.env.*
+!.env.example
+
+### Local integration material and credentials ###
+# Keep these files locally as operator-reference material.  Add only redacted
+# copies under src/test/resources when fixtures are needed by automated tests.
+MATERIALS/
+deployment-profiles/**/config.properties
+payBridge.rar
+
+### Docker and database runtime data ###
+postgres-data/
+docker-data/
