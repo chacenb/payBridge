@@ -16,11 +16,11 @@ Log4j2 RollingFileAppender Example (XML + PROPERTIES config) >>https://howtodoin
 
     <!-- All variables are configured inside <Properties> section | DO NOT TOUCH other tags -->
     <Properties>
-        <Property name="LOGS_BASE_PATH">@LOGS_BASE_PATH@</Property>
-        <Property name="LOGFILE_NAME">@LOGFILE_NAME@</Property>
-        <Property name="DELETE_LOGS_OLDER_THAN_X_DAYS">@DELETE_LOGS_OLDER_THAN_X_DAYS@</Property>
-        <Property name="LOG_FILE_SIZE">@LOG_FILE_SIZE@</Property>
-        <Property name="LOGS_PATTERN">@LOGS_PATTERN@</Property>
+        <Property name="LOGS_BASE_PATH">${env:LOGS_BASE_PATH:-/app/logs}</Property>
+        <Property name="LOGFILE_NAME">${env:LOGFILE_NAME:-paybridge.log}</Property>
+        <Property name="DELETE_LOGS_OLDER_THAN_X_DAYS">${env:DELETE_LOGS_OLDER_THAN_X_DAYS:-10}</Property>
+        <Property name="LOG_FILE_SIZE">${env:LOG_FILE_SIZE:-100 MB}</Property>
+        <Property name="LOGS_PATTERN">${env:LOGS_PATTERN:-%d{yyyy-MM-dd'T'HH:mm:ss.SSSZ} [%-5p] %c{1.}:%M:%L :: %msg%n%throwable}</Property>
     </Properties>
 
 

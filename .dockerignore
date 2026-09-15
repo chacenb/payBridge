@@ -1,0 +1,13 @@
+.git
+.idea
+.mvn
+target
+${logsBaseDir}
+MATERIALS
+deployment-profiles
+payBridge.rar
+.env
+.env.*
+!.env.example
+*.log
+docs
