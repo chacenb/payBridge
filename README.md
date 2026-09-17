@@ -20,6 +20,41 @@ PayBridge is a standalone Spring Boot service for mobile-money operator integrat
 
 The service listens on port `9000` by default, matching the existing Moov callback configuration. The callback route is `/sahelyspay/payment/callback` -- it durably persists every received POST (raw body, headers, hash) into `operator_callbacks` and returns `200 OK`; it does not yet correlate a callback to a payment or interpret its outcome.
 
+## Preprod deploy
+
+Preprod runs from a pre-built image only -- the host never needs this repository's
+source, `pom.xml`, or `Dockerfile`.
+
+1. Build and tag, then push to your registry:
+
+   ```bash
+   docker build -t <your-registry>/paybridge:<tag> .
+   docker login <your-registry>
+   docker push <your-registry>/paybridge:<tag>
+   ```
+
+2. On the preprod host, copy only two files there: `compose.preprod.yaml` and a
+   `.env.preprod` you write from `.env.preprod.example`, filling in every
+   `REPLACE_ME_*` value (a fresh `POSTGRES_PASSWORD`, preprod's own Moov
+   credentials, `PAYBRIDGE_IMAGE=<your-registry>/paybridge:<tag>`, and a
+   `MOMO_RESULT_URL` pointing at this host's own public address). Never commit
+   `.env.preprod`.
+
+3. Pull and start, always passing `--env-file` explicitly -- `-f` alone does not
+   select a matching env file, Compose otherwise only ever looks for a file
+   literally named `.env`:
+
+   ```bash
+   docker login <your-registry>
+   docker compose --env-file .env.preprod -f compose.preprod.yaml pull
+   docker compose --env-file .env.preprod -f compose.preprod.yaml up -d
+   ```
+
+4. Verify the same way as local dev: `curl http://<host>:9000/actuator/health`.
+
+To ship a new version later: rebuild with a new tag, push, update `PAYBRIDGE_IMAGE`
+in `.env.preprod`, then repeat step 3's `pull`/`up -d`.
+
 ## Configuration
 
 All runtime configuration is supplied through environment variables. `.env.example` documents the local variables; never commit `.env`, deployment profiles, or the raw `MATERIALS` directory.
