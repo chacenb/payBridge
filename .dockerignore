@@ -3,8 +3,8 @@
 .mvn
 target
 ${logsBaseDir}
-MATERIALS
-deployment-profiles
+_MATERIALS
+.TRASH/deployment-profiles
 payBridge.rar
 .env
 .env.*
