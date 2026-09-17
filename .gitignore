@@ -39,7 +39,7 @@ ${logsBaseDir}/
 .env
 .env.*
 !.env.example
-!.env.preprod.example
+!deployment-env/preprod/.env.preprod.example
 
 ### Local integration material and credentials ###
 # Keep these files locally as operator-reference material.  Add only redacted

@@ -31,8 +31,7 @@ import java.util.UUID;
 public class CallbackInboxService {
 
     private static final String OPERATOR_CODE = "MOOV_MONEY";
-    private static final Set<String> SENSITIVE_HEADERS =
-            Set.of("authorization", "cookie", "set-cookie", "x-api-key");
+    private static final Set<String> SENSITIVE_HEADERS = Set.of("authorization", "cookie", "set-cookie", "x-api-key");
 
     private final OperatorCallbackRepository repository;
 
@@ -52,6 +51,7 @@ public class CallbackInboxService {
 
         repository.save(callback);
         log.info("Stored operator callback {} ({} bytes)", callback.getId(), rawBody.length());
+        log.info("raw Body {}", rawBody);
     }
 
     private Map<String, String> sanitizedHeaders(HttpServletRequest request) {
