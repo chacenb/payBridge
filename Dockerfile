@@ -25,6 +25,6 @@ USER paybridge
 EXPOSE 9000
 
 HEALTHCHECK --interval=10s --timeout=3s --start-period=30s --retries=6 \
-    CMD curl --fail --silent http://localhost:9000/actuator/health || exit 1
+    CMD curl --fail --silent http://localhost:${SERVER_PORT:-9000}/actuator/health || exit 1
 
 ENTRYPOINT ["java", "-jar", "/app/app.jar"]

@@ -1,7 +1,6 @@
 services:
   paybridge:
-    build:
-      context: .
+    image: ${PAYBRIDGE_IMAGE:?Set PAYBRIDGE_IMAGE in .env, e.g. registry.example.com/sahelys/paybridge:1.2.3}
     ports:
       - "${PAYBRIDGE_PORT:-9000}:${SERVER_PORT:-9000}"
     environment:
@@ -24,12 +23,10 @@ services:
 
   postgres:
     image: postgres:17-alpine
-    ports:
-      - "${POSTGRES_PORT:-5432}:5432"
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-paybridge}
       POSTGRES_USER: ${POSTGRES_USER:-paybridge}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me-before-deployment}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s

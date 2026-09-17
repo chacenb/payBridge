@@ -39,12 +39,13 @@ ${logsBaseDir}/
 .env
 .env.*
 !.env.example
+!.env.preprod.example
 
 ### Local integration material and credentials ###
 # Keep these files locally as operator-reference material.  Add only redacted
 # copies under src/test/resources when fixtures are needed by automated tests.
-MATERIALS/
-deployment-profiles/**/config.properties
+_MATERIALS/
+.TRASH/deployment-profiles/**/config.properties
 payBridge.rar
 
 ### Docker and database runtime data ###
