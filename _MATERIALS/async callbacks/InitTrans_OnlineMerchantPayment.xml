@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/">
+    <soapenv:Body>
+        <api:Result xmlns:api="http://cps.huawei.com/cpsinterface/api_resultmgr" xmlns:res="http://cps.huawei.com/cpsinterface/result" xmlns:com="http://cps.huawei.com/cpsinterface/common">
+            <res:Header>
+                <res:Version>1.0</res:Version>
+                <res:OriginatorConversationID>SAPAYID_202609171334</res:OriginatorConversationID>
+                <res:ConversationID>AG_20260917_70103a630f8586aace21</res:ConversationID>
+            </res:Header>
+            <res:Body>
+                <res:ResultType>0</res:ResultType>
+                <res:ResultCode>0</res:ResultCode>
+                <res:ResultDesc>Process service request successfully.</res:ResultDesc>
+                <res:TransactionResult>
+                    <res:TransactionID>DIH6CFELSQ</res:TransactionID>
+                    <res:ResultParameters>
+                        <res:ResultParameter>
+                            <com:Key>DebitBalance</com:Key>
+                            <com:Value>{"total":[{"amount":"1997.00","currency":"XAF"}],"list":[{"amount":"1997.00","accountno":"100000000012169088","currency":"XAF","accounttypename":"Customer Main
+                                Account"},{"amount":"0.00","accountno":"100000000011996155","currency":"XAF","accounttypename":"Customer Salary Account"}]}
+                            </com:Value>
+                        </res:ResultParameter>
+                        <res:ResultParameter>
+                            <com:Key>CreditBalance</com:Key>
+                            <com:Value/>
+                        </res:ResultParameter>
+                    </res:ResultParameters>
+                </res:TransactionResult>
+                <res:ReferenceData>
+                    <res:ReferenceItem>
+                        <com:Key>Requester</com:Key>
+                        <com:Value>I0700 - SAHELYS</com:Value>
+                    </res:ReferenceItem>
+                    <res:ReferenceItem>
+                        <com:Key>ChargePayer</com:Key>
+                        <com:Value>Subscriber</com:Value>
+                    </res:ReferenceItem>
+                    <res:ReferenceItem>
+                        <com:Key>ThirdPartyID</com:Key>
+                        <com:Value>SAHELYS</com:Value>
+                    </res:ReferenceItem>
+                    <res:ReferenceItem>
+                        <com:Key>externalData1</com:Key>
+                        <com:Value>NO_DATA</com:Value>
+                    </res:ReferenceItem>
+                    <res:ReferenceItem>
+                        <com:Key>externalData2</com:Key>
+                        <com:Value>NO_DATA</com:Value>
+                    </res:ReferenceItem>
+                </res:ReferenceData>
+            </res:Body>
+        </api:Result>
+    </soapenv:Body>
+</soapenv:Envelope>

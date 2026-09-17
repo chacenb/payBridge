@@ -1,0 +1,35 @@
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:api="http://cps.huawei.com/synccpsinterface/api_requestmgr" xmlns:req="http://cps.huawei.com/synccpsinterface/request" xmlns:com="http://cps.huawei.com/synccpsinterface/common" xmlns:cus="http://cps.huawei.com/synccpsinterface/customizedrequest">
+   <soapenv:Header/>
+   <soapenv:Body>
+      <api:Request>
+         <req:Header>
+            <req:Version>1.0</req:Version>
+            <req:CommandID>SearchTransactionByExtID</req:CommandID>
+            <req:OriginatorConversationID>SAPAYID_202609111014</req:OriginatorConversationID>
+              <req:Caller>
+               <req:CallerType>2</req:CallerType>
+               <req:ThirdPartyID>SAHELYS</req:ThirdPartyID>
+               <req:Password>PASSWORD=</req:Password>
+                <req:ResultURL>http://172.16.14.25:9095/Test</req:ResultURL>
+            </req:Caller>
+            <req:KeyOwner>1</req:KeyOwner>
+            <req:Timestamp>20260601120000</req:Timestamp>
+            <req:ChannelCode>1010</req:ChannelCode>
+         </req:Header>
+         <req:Body>
+            <req:Identity>
+                  <req:Initiator>
+                  <req:IdentifierType>14</req:IdentifierType>
+                  <req:Identifier>SAHELYS</req:Identifier>
+                  <req:SecurityCredential>PASSWORD=</req:SecurityCredential>
+               </req:Initiator>
+            </req:Identity>
+            <req:SearchTransactionByExtIDRequest>
+               <req:OriginalConversationID>AG_20260915_70105b95cb128fd37515</req:OriginalConversationID>
+                 <req:StartDate>20260915000000</req:StartDate>
+                   <req:EndDate>20260915235959</req:EndDate>
+            </req:SearchTransactionByExtIDRequest>
+         </req:Body>
+      </api:Request>
+   </soapenv:Body>
+</soapenv:Envelope>

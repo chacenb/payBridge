@@ -1,0 +1,27 @@
+HTTP/1.1 200 OK
+        Server: nslb
+        Date: Thu, 17 Sep 2026 12:29:25 GMT
+        Content-Type: text/xml;charset=utf-8
+        Transfer-Encoding: chunked
+        Connection: keep-alive
+        Set-Cookie: AG_30002=C0379A2B0534D38C3B5290BF8A8BA3DCAC656A469FEE47C1; Path=/payment; Secure; HttpOnly
+
+<?xml version="1.0" encoding="utf-8"?>
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/">
+    <soapenv:Body>
+        <api:Response xmlns:api="http://cps.huawei.com/cpsinterface/api_requestmgr" xmlns:res="http://cps.huawei.com/cpsinterface/response">
+            <res:Header>
+                <res:Version>1.0</res:Version>
+                <res:OriginatorConversationID>SAPAYID_202609171334</res:OriginatorConversationID>
+                <res:ConversationID>AG_20260917_70103a630f8586aace21</res:ConversationID>
+            </res:Header>
+            <res:Body>
+                <res:ResponseCode>0</res:ResponseCode>
+                <res:ResponseDesc>Accept the service request successfully.</res:ResponseDesc>
+                <res:ServiceStatus>0</res:ServiceStatus>
+            </res:Body>
+        </api:Response>
+    </soapenv:Body>
+</soapenv:Envelope>
+HTTP_STATUS:200
+TOTAL_TIME:0.981886s

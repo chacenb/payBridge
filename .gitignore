@@ -44,7 +44,7 @@ ${logsBaseDir}/
 ### Local integration material and credentials ###
 # Keep these files locally as operator-reference material.  Add only redacted
 # copies under src/test/resources when fixtures are needed by automated tests.
-_MATERIALS/
+#_MATERIALS/
 .TRASH/deployment-profiles/**/config.properties
 payBridge.rar
 

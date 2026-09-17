@@ -17,7 +17,7 @@ public class MoovMoneyGatewayController implements IMoovMoneyGatewayController {
         return moovMoneyGatewayService.searchTransactionByExternalId(request.getStartDate(), request.getEndDate());
     }
 
-    @Override
+//    @Override
     public WsResponse<?> queryOrganizationBalance() {
         return moovMoneyGatewayService.queryOrganizationBalance();
     }

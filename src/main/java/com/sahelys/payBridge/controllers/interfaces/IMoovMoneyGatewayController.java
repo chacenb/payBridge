@@ -18,8 +18,8 @@ public interface IMoovMoneyGatewayController {
     @PostMapping("/v1/transactions/search")
     WsResponse<?> searchTransactionByExternalId(@RequestBody SearchTransactionRequest request);
 
-    @GetMapping("/v1/query-organization-balance")
-    WsResponse<?> queryOrganizationBalance();
+//    @GetMapping("/v1/query-organization-balance")
+//    WsResponse<?> queryOrganizationBalance();
 
     @PostMapping("/v1/payments/merchant")
     WsResponse<?> onlineMerchantPayment(@RequestBody MerchantPaymentRequest request);
