@@ -25,22 +25,32 @@ The service listens on port `9000` by default, matching the existing Moov callba
 Preprod runs from a pre-built image only -- the host never needs this repository's
 source, `pom.xml`, or `Dockerfile`.
 
-1. Build once, tag with both the next version number and `latest`, then push
-   both to Sahelys' Docker Hub:
+---
 
-   ```bash
-   docker build -t sahelys/paybridge-standalone:<next-version> -t sahelys/paybridge-standalone:latest .
-   docker login
-   docker push sahelys/paybridge-standalone:<next-version>
-   docker push sahelys/paybridge-standalone:latest
-   ```
+### :warning: MEMO -- versioning policy for every rebuild
 
-   > **Memo:** every rebuild after a code update must produce and push *both*
-   > tags, never just one -- the specific version number (so any deployment
-   > can be pinned to an exact, reproducible image and rolled back to a prior
-   > one) and `latest` (so anything that intentionally tracks the newest build
-   > gets it). `docker build` with two `-t` flags builds the image once and
-   > applies both tags to the identical result, so they never drift apart.
+**Every image rebuild after a code update MUST produce and push *both* the next
+version tag AND `latest` to Sahelys' Docker Hub -- never push only one.**
+
+- The version tag lets any deployment stay pinned to one exact, reproducible
+  image, and be rolled back to a prior one on demand.
+- `latest` lets anything that intentionally tracks the newest build get it.
+- Building with two `-t` flags builds the image **once** and applies both tags
+  to the identical result, so they can never drift apart from each other.
+
+Worked example, going from `1.0.2` to `1.0.3`:
+
+```bash
+docker build -t sahelys/paybridge-standalone:1.0.3 -t sahelys/paybridge-standalone:latest .
+docker login
+docker push sahelys/paybridge-standalone:1.0.3
+docker push sahelys/paybridge-standalone:latest
+```
+
+---
+
+1. Build and push both tags -- see the versioning policy above for the exact
+   commands.
 
 2. On the preprod host, copy only two files there: `compose.preprod.yaml` and a
    `.env.preprod` you write from `.env.preprod.example`, filling in every
