@@ -25,18 +25,29 @@ The service listens on port `9000` by default, matching the existing Moov callba
 Preprod runs from a pre-built image only -- the host never needs this repository's
 source, `pom.xml`, or `Dockerfile`.
 
-1. Build and tag, then push to your registry:
+1. Build once, tag with both the next version number and `latest`, then push
+   both to Sahelys' Docker Hub:
 
    ```bash
-   docker build -t <your-registry>/paybridge:<tag> .
-   docker login <your-registry>
-   docker push <your-registry>/paybridge:<tag>
+   docker build -t sahelys/paybridge-standalone:<next-version> -t sahelys/paybridge-standalone:latest .
+   docker login
+   docker push sahelys/paybridge-standalone:<next-version>
+   docker push sahelys/paybridge-standalone:latest
    ```
+
+   > **Memo:** every rebuild after a code update must produce and push *both*
+   > tags, never just one -- the specific version number (so any deployment
+   > can be pinned to an exact, reproducible image and rolled back to a prior
+   > one) and `latest` (so anything that intentionally tracks the newest build
+   > gets it). `docker build` with two `-t` flags builds the image once and
+   > applies both tags to the identical result, so they never drift apart.
 
 2. On the preprod host, copy only two files there: `compose.preprod.yaml` and a
    `.env.preprod` you write from `.env.preprod.example`, filling in every
    `REPLACE_ME_*` value (a fresh `POSTGRES_PASSWORD`, preprod's own Moov
-   credentials, `PAYBRIDGE_IMAGE=<your-registry>/paybridge:<tag>`, and a
+   credentials, `PAYBRIDGE_IMAGE=sahelys/paybridge-standalone:<next-version>`
+   (pin to the specific version, not `latest`, so this deployment stays
+   reproducible), and a
    `MOMO_RESULT_URL` pointing at this host's own public address). Never commit
    `.env.preprod`.
 
@@ -45,15 +56,16 @@ source, `pom.xml`, or `Dockerfile`.
    literally named `.env`:
 
    ```bash
-   docker login <your-registry>
+   docker login
    docker compose --env-file .env.preprod -f compose.preprod.yaml pull
    docker compose --env-file .env.preprod -f compose.preprod.yaml up -d
    ```
 
 4. Verify the same way as local dev: `curl http://<host>:9000/actuator/health`.
 
-To ship a new version later: rebuild with a new tag, push, update `PAYBRIDGE_IMAGE`
-in `.env.preprod`, then repeat step 3's `pull`/`up -d`.
+To ship a new version later: repeat step 1 (both tags, both pushed), update
+`PAYBRIDGE_IMAGE` in `.env.preprod` to the new version, then repeat step 3's
+`pull`/`up -d`.
 
 ## Configuration
 
