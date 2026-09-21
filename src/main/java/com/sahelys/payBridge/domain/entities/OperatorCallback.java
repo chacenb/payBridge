@@ -1,7 +1,10 @@
 package com.sahelys.payBridge.domain.entities;
 
+import com.sahelys.payBridge.domain.enums.EOperatorCallbackProcessingStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
@@ -28,6 +31,14 @@ public class OperatorCallback {
     @Id
     private UUID id;
 
+    /**
+     * Deliberately a plain String, not {@code EPaymentOperator} -- this row's whole job is
+     * to durably capture a raw inbound callback verbatim, even a malformed or unrecognized
+     * one. An enum-typed column would make that capture fail exactly when it matters most
+     * (an unexpected operator/value hitting the endpoint), which defeats the point of a
+     * durable inbox. In practice it's always a valid {@code EPaymentOperator.name()} today,
+     * since routing is fixed per endpoint -- but the column stays untyped on purpose.
+     */
     @Column(name = "operator_code", nullable = false)
     private String operatorCode;
 
@@ -57,8 +68,9 @@ public class OperatorCallback {
     @Column(name = "payload_sha256", nullable = false, length = 64)
     private String payloadSha256;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "processing_status", nullable = false)
-    private String processingStatus;
+    private EOperatorCallbackProcessingStatus processingStatus;
 
     @Column(name = "processing_error")
     private String processingError;

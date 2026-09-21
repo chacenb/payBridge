@@ -6,10 +6,10 @@ import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
 
-import static com.sahelys.payBridge.globals.configuration.MoovConfiguration.*;
+import static com.sahelys.payBridge.globals.MoovConfiguration.*;
 
 @Component
-public class HuaweiSoapRequestBuilder {
+public class MoovMoneyXmlRequestBuilder {
 
     @Value("${momo.third-party-id}")
     private String thirdPartyId;

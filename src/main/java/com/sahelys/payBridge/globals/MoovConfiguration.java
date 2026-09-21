@@ -1,4 +1,4 @@
-package com.sahelys.payBridge.globals.configuration;
+package com.sahelys.payBridge.globals;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -8,8 +8,8 @@ public class MoovConfiguration {
     public static final String GIVE_CHANGE              = "InitTrans_GiveChange";
     public static final String SEARCH_TRANSACTION_BY_ID = "SearchTransactionByExtID";
     public static final String QUERY_BALANCE            = "QueryOrganizationBalance";
-    public static final String DATE_FORMAT              = "yyyyMMddHHmmss";
 
+    public static final String DATE_FORMAT              = "yyyyMMddHHmmss";
 
     public static String formatDate(LocalDateTime date) {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern(DATE_FORMAT);

@@ -1,6 +1,6 @@
 package com.sahelys.payBridge.domain.enums;
 
-public enum HuaweiEndpoint {
-    PAYMENT,
+public enum EHuaweiEndpointType {
+    ASYNC,
     SYNC
 }
