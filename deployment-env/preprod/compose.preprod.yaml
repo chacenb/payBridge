@@ -2,6 +2,7 @@ services:
   paybridge:
 #    build:
     image: ${PAYBRIDGE_IMAGE:?Set PAYBRIDGE_IMAGE in .env, e.g. registry.example.com/sahelys/paybridge:1.2.3}
+    container_name: paybridge-standalone
     ports:
       - "${PAYBRIDGE_PORT:-9000}:${SERVER_PORT:-9000}"
     environment:
@@ -25,8 +26,13 @@ services:
 
   postgres:
     image: postgres:17-alpine
-#    ports:
-#      - "${POSTGRES_PORT:-5432}:5432"
+    # Fixed, explicit name so this container is identifiable in `docker ps`
+    # regardless of which folder name Compose derives its project name from
+    # (multiple apps deployed from same-named "preprod" folders would
+    # otherwise all get generic, colliding container names).
+    container_name: paybridge-postgres
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-paybridge}
       POSTGRES_USER: ${POSTGRES_USER:-paybridge}

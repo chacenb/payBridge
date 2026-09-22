@@ -38,6 +38,27 @@ compose() {
   docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" "$@"
 }
 
+# Snapshot the image(s) the current container(s) are running BEFORE touching
+# anything -- once they're stopped/removed there's no other way to know what
+# to delete. Empty on a first-ever run (nothing deployed yet), which is fine.
+OLD_IMAGE_IDS="$(compose ps -q | xargs -r docker inspect -f '{{.Image}}' 2>/dev/null | sort -u)"
+
+# Stop and remove the running container(s) for this stack first -- a running
+# container holds a reference to its image, so the image can't be deleted
+# while it's still up. `down` is safe to run even if nothing is running.
+echo "-------------------------------------------"
+echo "==> Stopping and removing current container(s)"
+compose down
+
+# Delete the image(s) that were just replaced, now that nothing references
+# them. Best-effort (`|| true`): e.g. the same tag pulled again would already
+# have moved, or the image might still be shared with another running stack.
+if [ -n "$OLD_IMAGE_IDS" ]; then
+  echo "-------------------------------------------"
+  echo "==> Removing previous image(s)"
+  echo "$OLD_IMAGE_IDS" | xargs -r docker rmi || true
+fi
+
 # Pull BEFORE up, on purpose: `up -d` alone only pulls an image if nothing
 # with that tag exists locally yet, so redeploying the same tag with new
 # content would silently reuse the stale local copy. Pulling explicitly here
