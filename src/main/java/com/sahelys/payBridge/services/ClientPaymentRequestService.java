@@ -1,21 +1,25 @@
 package com.sahelys.payBridge.services;
 
+import com.sahelys.payBridge.domain.entities.ClientPaymentRequest;
 import com.sahelys.payBridge.domain.entities.PaymentTransaction;
 import com.sahelys.payBridge.globals.exceptions.CustomException;
 import com.sahelys.payBridge.globals.exceptions.EExceptionCode;
+import com.sahelys.payBridge.repository.ClientPaymentRequestRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
+import java.util.UUID;
 
-import static com.sahelys.payBridge.controllers.IPayBridgeController.ClientPaymentRequest;
 import static com.sahelys.payBridge.controllers.IPayBridgeController.PaymentResponse;
+import static com.sahelys.payBridge.controllers.IPayBridgeController.SubmitPaymentRequestBody;
 
 /**
- * PM-03 Client API. Owns idempotent creation of the PaymentTransaction from a
- * ClientPaymentRequest and the shape of the PaymentResponse handed back to the Client --
+ * PM-03 Client API. Owns idempotent creation of the ClientPaymentRequest and its linked
+ * PaymentTransaction, and the shape of the PaymentResponse handed back to the Client --
  * not the transaction lifecycle itself, which stays in PaymentTransactionService.
  */
 @Service
@@ -23,28 +27,22 @@ import static com.sahelys.payBridge.controllers.IPayBridgeController.PaymentResp
 @Slf4j
 public class ClientPaymentRequestService {
 
-    private final PaymentTransactionService paymentTransactionService;
+    private final ClientPaymentRequestRepository clientPaymentRequestRepository;
+    private final PaymentTransactionService      paymentTransactionService;
 
     @Value("${paybridge.public-base-url}")
     private String publicBaseUrl;
 
-    public PaymentResponse submitClientPaymentRequest(ClientPaymentRequest request) {
-        Optional<PaymentTransaction> existing = paymentTransactionService.findByClientIdentity(request.getClientAppId(), request.getClientPaymentRequestId());
+    @Transactional
+    public PaymentResponse submitClientPaymentRequest(SubmitPaymentRequestBody request) {
+        Optional<ClientPaymentRequest> existing = clientPaymentRequestRepository.findByClientAppIdAndClientPaymentRequestId(request.getClientAppId(), request.getClientPaymentRequestId());
 
         PaymentTransaction transaction = existing.isPresent()
                                          ? reuseExistingTransaction(existing.get(), request)
-                                         : paymentTransactionService.create(request.getClientAppId(),
-                                                                            request.getClientPaymentRequestId(),
-                                                                            request.getAmount(),
-                                                                            request.getCurrency(),
-                                                                            request.getDescription(),
-                                                                            request.getCallbackUrl());
+                                         : createRequestAndTransaction(request);
 
-        if (existing.isEmpty()) {
-            log.info("Created PaymentTransaction {} for {}:{}", transaction.getId(), request.getClientAppId(), request.getClientPaymentRequestId());
-        } else {
-            log.info("Idempotent replay for {}:{} -> existing PaymentTransaction {}", request.getClientAppId(), request.getClientPaymentRequestId(), transaction.getId());
-        }
+        if (existing.isEmpty()) log.info("Created PaymentTransaction {} for {}:{}", transaction.getId(), request.getClientAppId(), request.getClientPaymentRequestId());
+        else log.info("___Idempotent replay for {}:{} -> Already existing PaymentTransaction {}", request.getClientAppId(), request.getClientPaymentRequestId(), transaction.getId());
 
         return PaymentResponse.builder()
                               .paymentTransactionId(transaction.getId())
@@ -53,19 +51,33 @@ public class ClientPaymentRequestService {
                               .build();
     }
 
+    private PaymentTransaction createRequestAndTransaction(SubmitPaymentRequestBody request) {
+        ClientPaymentRequest clientPaymentRequest = clientPaymentRequestRepository.save(
+                ClientPaymentRequest.builder()
+                                    .id(UUID.randomUUID())
+                                    .clientAppId(request.getClientAppId())
+                                    .clientPaymentRequestId(request.getClientPaymentRequestId())
+                                    .amount(request.getAmount())
+                                    .currency(request.getCurrency())
+                                    .description(request.getDescription())
+                                    .callbackUrl(request.getCallbackUrl())
+                                    .build());
+        return paymentTransactionService.create(clientPaymentRequest);
+    }
+
     /**
      * Idempotency identity is clientAppId + clientPaymentRequestId (architecture-reference
-     * section 24), enforced as a unique index at the database layer. A replay with the same
-     * identity but a different amount/currency is rejected rather than silently accepted --
-     * silently returning the original financial terms for materially different input would
-     * hide a client-side bug from the caller.
+     * section 24), enforced as a unique index at the database layer, on ClientPaymentRequest.
+     * A replay with the same identity but a different amount/currency is rejected rather than
+     * silently accepted -- silently returning the original financial terms for materially
+     * different input would hide a client-side bug from the caller.
      */
-    private PaymentTransaction reuseExistingTransaction(PaymentTransaction existing, ClientPaymentRequest request) {
-        boolean sameAmount = existing.getAmount().compareTo(request.getAmount()) == 0;
-        boolean sameCurrency = existing.getCurrency().equals(request.getCurrency());
-        if (!sameAmount || !sameCurrency)
-            throw new CustomException(EExceptionCode.DATA_INCOHERENCE, "clientPaymentRequestId " + request.getClientPaymentRequestId() + " was already submitted with different amount/currency");
+    private PaymentTransaction reuseExistingTransaction(ClientPaymentRequest oldPaymentRequest, SubmitPaymentRequestBody newPaymentRequest) {
+        boolean sameAmount = oldPaymentRequest.getAmount().compareTo(newPaymentRequest.getAmount()) == 0;
+        boolean sameCurrency = oldPaymentRequest.getCurrency().equals(newPaymentRequest.getCurrency());
+        if (!sameAmount || !sameCurrency) throw new CustomException(EExceptionCode.DATA_INCOHERENCE, "clientPaymentRequestId " + newPaymentRequest.getClientPaymentRequestId() + " was already submitted with different amount/currency");
 
-        return existing;
+        return paymentTransactionService.findByClientPaymentRequestRef(oldPaymentRequest.getId())
+                                        .orElseThrow(() -> new CustomException(EExceptionCode.ENTITY_NOT_FOUND, "ClientPaymentRequest " + oldPaymentRequest.getId() + " has no linked PaymentTransaction"));
     }
 }

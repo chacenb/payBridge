@@ -21,9 +21,11 @@ import java.time.OffsetDateTime;
 import java.util.UUID;
 
 /**
- * The Payment Module's own payment identity -- architecture-reference guardrail 2.
- * Owns clientAppId/clientPaymentRequestId (the Client's identity) without owning the
- * Client's business transaction (guardrail 7).
+ * The Payment Module's own payment identity -- architecture-reference guardrail 2. Created
+ * from a {@link ClientPaymentRequest} (referenced via {@code clientPaymentRequestRef}) but
+ * owns its own independent lifecycle and, later, the chosen provider -- it never owns the
+ * Client's business transaction (guardrail 7). {@code clientAppId}/{@code clientPaymentRequestId}
+ * live only on {@link ClientPaymentRequest}, not here.
  *
  * <p>MVP simplification: absorbs {@code provider}/{@code providerPaymentTransactionId}
  * directly (no separate PaymentAttempt entity -- collapsed for the MVP since nothing live
@@ -34,21 +36,20 @@ import java.util.UUID;
  */
 @Entity
 @Table(name = "payment_transactions")
-@Getter
-@Setter
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
+@Getter @Setter @Builder @NoArgsConstructor @AllArgsConstructor
 public class PaymentTransaction {
 
     @Id
     private UUID id;
 
-    @Column(name = "client_app_id", nullable = false)
-    private String clientAppId;
-
-    @Column(name = "client_payment_request_id", nullable = false)
-    private String clientPaymentRequestId;
+    /**
+     * Foreign key to {@link ClientPaymentRequest#getId()} -- the request's own surrogate
+     * UUID primary key, NOT the client's external {@code clientPaymentRequestId} (a String,
+     * lives only on {@link ClientPaymentRequest}). Named {@code Ref} rather than {@code Id}
+     * specifically so it's never mistaken for that different, differently-typed field.
+     */
+    @Column(name = "client_payment_request_ref", nullable = false)
+    private UUID clientPaymentRequestRef;
 
     @Column(name = "amount", nullable = false)
     private BigDecimal amount;

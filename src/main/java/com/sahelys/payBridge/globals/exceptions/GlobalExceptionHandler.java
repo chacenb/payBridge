@@ -2,6 +2,7 @@ package com.sahelys.payBridge.globals.exceptions;
 
 import com.sahelys.payBridge.domain.dto.WsResponse;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -85,17 +86,20 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     /* Custom Exception handler for unique DB fields */
   /* Note: the default "handleExceptionInternal" method is only designed to handle validation-related exceptions
   as MethodArgumentNotValidException, MissingServletRequestPartException, etc.. Validation-related ONLY
-  and not database exceptions (ex: DataIntegrityViolationException) */
-//    @ExceptionHandler({DataIntegrityViolationException.class, JpaSystemException.class, ConstraintViolationException.class})
-//    public ResponseEntity<WsResponse<?>> handleDataIntegrityViolation(Exception ex) {
-//        log.error("____________________[{}] >>", ex.getClass().getName(), ex);
-//
-//        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(WsResponse.builder()
-//                                                                                      .timeStamp(ZonedDateTime.now())
-//                                                                                      .status(HttpStatus.INTERNAL_SERVER_ERROR)
-//                                                                                      .message(ex.getMessage())
-//                                                                                      .errorCode("DB_ERROR")
-//                                                                                      .build());
-//    }
+  and not database exceptions (ex: DataIntegrityViolationException) -- without this handler, two
+  concurrent requests racing past an idempotency check (e.g. ClientPaymentRequestService,
+  check-then-act against uq_client_payment_requests_client_request) surface the second
+  insert's unique-constraint violation as a raw, leaking 500 instead of a clean 400. */
+    @ExceptionHandler({DataIntegrityViolationException.class})
+    public ResponseEntity<WsResponse<?>> handleDataIntegrityViolation(DataIntegrityViolationException ex) {
+        log.error("_____[GLOBAL EXCEPTION HANDLER : Data Integrity Violation] >>", ex);
+
+        return ResponseEntity.badRequest().body(WsResponse.builder()
+                                                          .timeStamp(ZonedDateTime.now())
+                                                          .status(HttpStatus.BAD_REQUEST)
+                                                          .message("Request conflicts with an existing record.")
+                                                          .errorCode(EExceptionCode.DATA_INCOHERENCE.getLabel())
+                                                          .build());
+    }
 
 }

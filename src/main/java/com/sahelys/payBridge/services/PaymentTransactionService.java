@@ -1,5 +1,6 @@
 package com.sahelys.payBridge.services;
 
+import com.sahelys.payBridge.domain.entities.ClientPaymentRequest;
 import com.sahelys.payBridge.domain.entities.PaymentTransaction;
 import com.sahelys.payBridge.domain.enums.EPaymentOperator;
 import com.sahelys.payBridge.domain.enums.EPaymentTransactionStatusCode;
@@ -10,14 +11,13 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
 import java.util.Optional;
 import java.util.UUID;
 
 /**
  * PM-02 Transaction Core: creation, retrieval and controlled state transitions only.
  * Idempotent create-or-get semantics belong to the Client API / idempotency steps built on
- * top of this service, not to the core lifecycle itself -- {@link #findByClientIdentity}
+ * top of this service, not to the core lifecycle itself -- {@link #findByClientPaymentRequestRef}
  * is the lookup they will use.
  */
 @Service
@@ -27,17 +27,14 @@ public class PaymentTransactionService {
     private final PaymentTransactionRepository repository;
 
     @Transactional
-    public PaymentTransaction create(String clientAppId, String clientPaymentRequestId,
-                                     BigDecimal amount, String currency,
-                                     String description, String callbackUrl) {
+    public PaymentTransaction create(ClientPaymentRequest clientPaymentRequest) {
         PaymentTransaction transaction = PaymentTransaction.builder()
                                                            .id(UUID.randomUUID())
-                                                           .clientAppId(clientAppId)
-                                                           .clientPaymentRequestId(clientPaymentRequestId)
-                                                           .amount(amount)
-                                                           .currency(currency)
-                                                           .description(description)
-                                                           .callbackUrl(callbackUrl)
+                                                           .clientPaymentRequestRef(clientPaymentRequest.getId())
+                                                           .amount(clientPaymentRequest.getAmount())
+                                                           .currency(clientPaymentRequest.getCurrency())
+                                                           .description(clientPaymentRequest.getDescription())
+                                                           .callbackUrl(clientPaymentRequest.getCallbackUrl())
                                                            .status(EPaymentTransactionStatusCode.PENDING)
                                                            .build();
         return repository.save(transaction);
@@ -55,8 +52,8 @@ public class PaymentTransactionService {
         return repository.findById(paymentTransactionId);
     }
 
-    public Optional<PaymentTransaction> findByClientIdentity(String clientAppId, String clientPaymentRequestId) {
-        return repository.findByClientAppIdAndClientPaymentRequestId(clientAppId, clientPaymentRequestId);
+    public Optional<PaymentTransaction> findByClientPaymentRequestRef(UUID clientPaymentRequestRef) {
+        return repository.findByClientPaymentRequestRef(clientPaymentRequestRef);
     }
 
     @Transactional

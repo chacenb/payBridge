@@ -1,6 +1,7 @@
 package com.sahelys.payBridge.controllers;
 
 import com.sahelys.payBridge.domain.dto.WsResponse;
+import com.sahelys.payBridge.domain.enums.EPaymentOperator;
 import com.sahelys.payBridge.domain.enums.EPaymentTransactionStatusCode;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMin;
@@ -12,24 +13,31 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
 import org.hibernate.validator.constraints.URL;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @RequestMapping("/api/paybridge")
 public interface IPayBridgeController {
 
-    /**
-     * PM-03 Client API -- architecture-reference/payment_communication_architecture_reference.md
-     * section 28. This is the sole public entry point for a Client Application; it must expose
-     * no provider-specific detail (guardrail 6).
-     */
     @PostMapping("/v1/submit-payment-request")
-    WsResponse<?> submitClientPaymentRequest(@Valid @RequestBody ClientPaymentRequest request);
+    WsResponse<?> submitClientPaymentRequest(@Valid @RequestBody SubmitPaymentRequestBody request);
+
+    /**
+     * Backend data endpoint for the (separate, not-yet-built) Payment UI frontend -- it
+     * fetches everything needed to render the payment page and let the payer pick a provider.
+     * Deliberately not "/pay/{id}" (the browser-facing URL from the architecture doc's own
+     * example): that route belongs to the frontend app, which calls this endpoint.
+     */
+    @GetMapping("/v1/payment-transactions/{paymentTransactionId}")
+    WsResponse<?> getPaymentTransaction(@PathVariable UUID paymentTransactionId);
 
     @PostMapping("/v1/payments/merchant")
     WsResponse<?> initiatePaymentProcess(@RequestBody PaymentRequest request);
@@ -63,7 +71,7 @@ public interface IPayBridgeController {
     }
 
     @Getter @Setter @ToString
-    public class ClientPaymentRequest {
+    public class SubmitPaymentRequestBody {
 
         @NotBlank
         private String clientAppId;
@@ -96,6 +104,24 @@ public interface IPayBridgeController {
         private UUID                      paymentTransactionId;
         private String                        paymentUrl;
         private EPaymentTransactionStatusCode status;
+    }
+
+    /**
+     * What the Payment UI frontend needs to render the payment page. Deliberately excludes
+     * callbackUrl (the client's internal webhook, no browser-side use), clientAppId/
+     * clientPaymentRequestId (the client's own identity -- lives on ClientPaymentRequest,
+     * not needed here), and providerPaymentTransactionId (Huawei CPS-internal correlation
+     * id -- provider-specific detail that shouldn't leak past the abstraction).
+     */
+    @Getter @Setter @ToString @Builder
+    public class PaymentPageResponse {
+        private UUID                          paymentTransactionId;
+        private BigDecimal                    amount;
+        private String                        currency;
+        private String                        description;
+        private EPaymentTransactionStatusCode status;
+        private EPaymentOperator              selectedProvider;
+        private List<EPaymentOperator>        availableProviders;
     }
 
     @Getter @Setter @ToString @Builder
