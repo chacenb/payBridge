@@ -63,7 +63,7 @@ public class MoovMoneyXmlRequestBuilder {
                                    </req:PrimaryParty>
                                    <req:ReceiverParty>
                                        <req:IdentifierType>4</req:IdentifierType>
-                                       <req:Identifier>PMUG</req:Identifier>
+                                       <req:Identifier>MF2201</req:Identifier>
                                    </req:ReceiverParty>
                                    <req:Requester>
                                        <req:IdentifierType>4</req:IdentifierType>
@@ -122,7 +122,7 @@ public class MoovMoneyXmlRequestBuilder {
                                    %s
                                    <req:PrimaryParty>
                                        <req:IdentifierType>4</req:IdentifierType>
-                                       <req:Identifier>PMUG</req:Identifier>
+                                       <req:Identifier>MF2201</req:Identifier>
                                    </req:PrimaryParty>
                                    <req:ReceiverParty>
                                        <req:IdentifierType>1</req:IdentifierType>
