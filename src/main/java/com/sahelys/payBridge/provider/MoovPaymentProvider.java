@@ -1,27 +1,33 @@
 package com.sahelys.payBridge.provider;
 
+import com.sahelys.payBridge.domain.builder.MoovMoneyXmlRequestBuilder;
 import com.sahelys.payBridge.domain.dto.ProviderPaymentRequest;
 import com.sahelys.payBridge.domain.dto.ProviderPaymentResponse;
+import com.sahelys.payBridge.domain.enums.EHuaweiEndpointType;
 import com.sahelys.payBridge.domain.enums.EPaymentOperator;
+import com.sahelys.payBridge.services.MoovMoneyWebClient;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 /**
- * Bare skeleton: registers MOOV as a real, callable operator so
- * PaymentProviderSubmissionService's provider wiring is complete end to end -- but does
- * not yet call the real Huawei CPS SOAP API.
+ * Real MOOV_MONEY implementation of {@link #initiatePayment}: builds the real XML request
+ * (with the caller's {@code paymentTransactionId} as {@code OriginatorConversationID}, so the
+ * later async callback correlates automatically), sends it, and parses the sync ack.
  *
- * <p>The pieces to build this on already exist (MoovMoneyXmlRequestBuilder, MoovMoneyWebClient,
- * Parser) but are deliberately not wired here yet because of one unresolved correctness
- * issue: MoovMoneyXmlRequestBuilder currently mints its own {@code OriginatorConversationID}
- * (a timestamp-based string) instead of accepting the caller's {@code paymentTransactionId} --
- * and {@code paymentTransactionId} is exactly what PaymentCallbackCorrelationService needs
- * echoed back in the later async callback to correlate it (see ProviderCallbackResult's
- * javadoc). Wiring this class to call the builder as-is would silently break correlation on
- * every real payment rather than fail loudly. That builder needs to accept an external
- * correlation reference first; that's the next real step here, not this skeleton.
+ * <p>The one remaining gap is {@link MoovMoneyWebClient#sendRequest} itself, which is still a
+ * stub (always returns {@code null}) -- the network call to Huawei's real endpoint isn't
+ * implemented yet. Until then, calling this against MOOV surfaces as a clean
+ * {@code CustomException(RUNTINE_EXCEPTION)} (via {@code ProviderXmlParser.parseMoovSyncAck}
+ * rejecting the null response, caught by {@code PaymentProviderSubmissionService}'s existing
+ * "provider call failed" boundary), not a silent wrong result.
  */
 @Component
+@RequiredArgsConstructor
 public class MoovPaymentProvider implements PaymentProvider {
+
+    private final MoovMoneyXmlRequestBuilder xmlRequestBuilder;
+    private final MoovMoneyWebClient         webClient;
+    private final ProviderXmlParser          xmlParser;
 
     @Override
     public EPaymentOperator providerCode() {
@@ -30,7 +36,9 @@ public class MoovPaymentProvider implements PaymentProvider {
 
     @Override
     public ProviderPaymentResponse initiatePayment(ProviderPaymentRequest request) {
-        return new ProviderPaymentResponse();
+        String xmlRequest = xmlRequestBuilder.buildMerchantPaymentRequest(request.getPaymentTransactionId(), request.getCustomerPhone(), request.getAmount().toPlainString());
+        String xmlResponse = webClient.sendRequest(EHuaweiEndpointType.ASYNC, xmlRequest);
+        return xmlParser.parseMoovSyncAck(xmlResponse);
     }
 
     @Override
@@ -38,4 +46,7 @@ public class MoovPaymentProvider implements PaymentProvider {
         return new ProviderPaymentResponse();
     }
 
+    @Override public ProviderPaymentResponse giveChange() {
+        return null;
+    }
 }

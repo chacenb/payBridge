@@ -21,7 +21,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -54,40 +53,13 @@ public interface IPayBridgeController {
      * Delegates to PaymentProviderSubmissionService.submitToProvider -- see its own javadoc
      * for what happens synchronously (accept/reject) vs. later via the async callback.
      */
-    @PostMapping("/v1/payment-transactions/{paymentTransactionId}/select-provider")
-    WsResponse<?> selectProvider(@PathVariable UUID paymentTransactionId, @Valid @RequestBody SelectProviderRequest request);
-
-    @PostMapping("/v1/payments/merchant")
-    WsResponse<?> initiatePaymentProcess(@RequestBody PaymentRequest request);
-
-    @PostMapping("/v1/transactions/search")
-    WsResponse<?> searchTransactionByExternalId(@RequestBody SearchTransactionRequest request);
-
-    @PostMapping("/v1/payments/give-change")
-    WsResponse<?> giveChange(@RequestBody GiveChangeRequest request);
+    @PostMapping("/v1/payment-transactions/{paymentTransactionId}/proceed-payment")
+    WsResponse<?> submitPaymentTowardsProvider(@PathVariable UUID paymentTransactionId, @Valid @RequestBody SelectProviderRequest request);
 
 
     /*--------------------------------------------------------*/
     /* Request models ----------------------------------------*/
     /*--------------------------------------------------------*/
-    @Getter @Setter @ToString @Builder
-    public class PaymentRequest {
-        private String customerMsisdn;
-        private String amount;
-    }
-
-    @Getter @Setter @ToString @Builder
-    public class GiveChangeRequest {
-        private String customerMsisdn;
-        private String amount;
-    }
-
-    @Getter @Setter @ToString @Builder
-    public class SearchTransactionRequest {
-        private LocalDateTime startDate;
-        private LocalDateTime endDate;
-    }
-
     @Getter @Setter @ToString
     public class SubmitPaymentRequestBody {
 
@@ -158,17 +130,6 @@ public interface IPayBridgeController {
         private EPaymentTransactionStatusCode status;
         private EPaymentOperator              selectedProvider;
         private List<EPaymentOperator>        availableProviders;
-    }
-
-    @Getter @Setter @ToString @Builder
-    public class MerchantPaymentResponse {
-        private String  originatorConversationId;
-        private String  conversationId;
-        private Integer responseCode;
-        private String  responseDescription;
-        private Integer serviceStatus;
-        private boolean accepted;
-
     }
 
 }

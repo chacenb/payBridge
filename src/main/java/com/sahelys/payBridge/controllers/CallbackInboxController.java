@@ -9,12 +9,13 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
+
+import static com.sahelys.payBridge.globals.utils.Utils.readBody;
 
 /**
  * Each operator gets its own callback path (its own registered ResultURL in reality), so
- * which {@link com.sahelys.payBridge.provider.CallbackParser} to use is already known here,
- * explicitly, per endpoint -- no dynamic lookup needed.
+ * which {@link com.sahelys.payBridge.provider.ProviderXmlParser} parsing method to use is
+ * already known here, explicitly, per endpoint -- no dynamic lookup needed.
  */
 @RestController
 @RequiredArgsConstructor
@@ -23,12 +24,9 @@ public class CallbackInboxController {
     private final CallbackInboxService callbackInboxService;
 
     @PostMapping("${paybridge.callback.path}")
-    public ResponseEntity<Void> receiveMoovCallback(HttpServletRequest request) throws IOException {
-        callbackInboxService.receive(EPaymentOperator.MOOV_MONEY, request, _readBody(request));
+    public ResponseEntity<Void> receiveAsyncCallbackResponse(HttpServletRequest request) throws IOException {
+        callbackInboxService.receiveAsyncCallbackResponse(EPaymentOperator.MOOV_MONEY, request, readBody(request));
         return ResponseEntity.ok().build();
     }
 
-    private String _readBody(HttpServletRequest request) throws IOException {
-        return new String(request.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-    }
 }

@@ -5,7 +5,6 @@ import com.sahelys.payBridge.domain.dto.WsResponse;
 import com.sahelys.payBridge.domain.entities.PaymentTransaction;
 import com.sahelys.payBridge.domain.enums.EPaymentOperator;
 import com.sahelys.payBridge.services.ClientPaymentRequestService;
-import com.sahelys.payBridge.services.PayBridgeService;
 import com.sahelys.payBridge.services.PaymentCallbackDeliveryService;
 import com.sahelys.payBridge.services.PaymentProviderSubmissionService;
 import com.sahelys.payBridge.services.PaymentTransactionService;
@@ -21,7 +20,6 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class PayBridgeController implements IPayBridgeController {
 
-    private final PayBridgeService                  payBridgeService;
     private final ClientPaymentRequestService        clientPaymentRequestService;
     private final PaymentTransactionService          paymentTransactionService;
     private final PaymentCallbackDeliveryService     paymentCallbackDeliveryService;
@@ -44,9 +42,8 @@ public class PayBridgeController implements IPayBridgeController {
     }
 
     @Override
-    public WsResponse<?> selectProvider(UUID paymentTransactionId, SelectProviderRequest request) {
-        PaymentTransaction transaction = paymentProviderSubmissionService.submitToProvider(
-                paymentTransactionId, request.getProviderCode(), request.getCustomerPhone());
+    public WsResponse<?> submitPaymentTowardsProvider(UUID paymentTransactionId, SelectProviderRequest request) {
+        PaymentTransaction transaction = paymentProviderSubmissionService.submitToProvider(paymentTransactionId, request.getProviderCode(), request.getCustomerPhone());
         return paymentPageResponse(transaction);
     }
 
@@ -76,21 +73,6 @@ public class PayBridgeController implements IPayBridgeController {
                          .status(HttpStatus.OK)
                          .data(callback)
                          .build();
-    }
-
-    @Override
-    public WsResponse<?> searchTransactionByExternalId(SearchTransactionRequest request) {
-        return payBridgeService.searchTransactionByExternalId(request.getStartDate(), request.getEndDate());
-    }
-
-    @Override
-    public WsResponse<?> initiatePaymentProcess(PaymentRequest request) {
-        return payBridgeService.initiatePaymentProcess(request.getCustomerMsisdn(), request.getAmount());
-    }
-
-    @Override
-    public WsResponse<?> giveChange(GiveChangeRequest request) {
-        return payBridgeService.giveChange(request.getCustomerMsisdn(), request.getAmount());
     }
 
 }

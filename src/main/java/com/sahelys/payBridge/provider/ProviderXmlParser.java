@@ -1,6 +1,7 @@
 package com.sahelys.payBridge.provider;
 
 import com.sahelys.payBridge.domain.dto.ProviderCallbackResult;
+import com.sahelys.payBridge.domain.dto.ProviderPaymentResponse;
 import com.sahelys.payBridge.domain.enums.EPaymentOperator;
 import com.sahelys.payBridge.domain.enums.EProviderPaymentResultCode;
 import com.sahelys.payBridge.globals.exceptions.CustomException;
@@ -18,27 +19,31 @@ import java.util.UUID;
 import static com.sahelys.payBridge.globals.constants.Globals.*;
 
 /**
- * Turns a raw operator callback body into a provider-agnostic {@link ProviderCallbackResult}.
- * Moov parsing is real, built against the captured shape in
- * {@code _MATERIALS/async callbacks/InitTrans_OnlineMerchantPayment.xml}. Airtel has no real
- * callback sample yet -- do not guess its payload shape; it needs the same kind of real
- * captured evidence Moov had before a real implementation can be written here.
+ * Every real XML parsing need in this codebase, in one flat class -- both legs of a Moov
+ * transaction-initiating call: the async callback (real financial outcome, confirmed against
+ * {@code _MATERIALS/async callbacks/InitTrans_OnlineMerchantPayment.xml}) and the sync ack
+ * (immediate accept/reject, confirmed against {@code _MATERIALS/responses_prod/}). Both share
+ * the same XML/XPath mechanics ({@link #parseXml}/{@link #evaluate}), which is exactly why
+ * they live together here rather than as separate classes duplicating that boilerplate.
+ * Airtel has no real captured sample for either leg yet -- do not guess its payload shape;
+ * it needs the same kind of real captured evidence Moov had before a real implementation can
+ * be written here.
  */
 @Component
-public class CallbackParserRegistry implements CallbackParser {
+public class ProviderXmlParser {
 
-    @Override
-    public ProviderCallbackResult parse(EPaymentOperator operator, String rawPayload) {
+    /* -------------------------------------------------------- */
+    /* Async callback parsing (the real financial outcome)       */
+    /* -------------------------------------------------------- */
+
+    public ProviderCallbackResult parseAsyncCallback(EPaymentOperator operator, String rawPayload) {
         return switch (operator) {
-            case EPaymentOperator.MOOV_MONEY -> parseMoovCallback(rawPayload);
-            case EPaymentOperator.AIRTEL_MONEY -> parseAirtelCallback(rawPayload);
+            case EPaymentOperator.MOOV_MONEY -> parseMoovAsyncCallback(rawPayload);
+            case EPaymentOperator.AIRTEL_MONEY -> parseAirtelAsyncCallback(rawPayload);
         };
     }
 
-    /* -------------------------------------------------------- */
-    /* Moov callback parser */
-    /* -------------------------------------------------------- */
-    private ProviderCallbackResult parseMoovCallback(String rawPayload) {
+    private ProviderCallbackResult parseMoovAsyncCallback(String rawPayload) {
         Document document = parseXml(rawPayload);
         XPath xpath = XPathFactory.newInstance().newXPath();
 
@@ -63,6 +68,10 @@ public class CallbackParserRegistry implements CallbackParser {
                                      .build();
     }
 
+    private ProviderCallbackResult parseAirtelAsyncCallback(String rawPayload) {
+        throw new CustomException(EExceptionCode.DISABLED_FEATURE, "Airtel callback parsing is not implemented yet -- no real captured sample exists");
+    }
+
     private UUID parseTransactionId(String originatorConversationId) {
         try {
             return UUID.fromString(originatorConversationId.trim());
@@ -73,13 +82,42 @@ public class CallbackParserRegistry implements CallbackParser {
         }
     }
 
+    /* -------------------------------------------------------- */
+    /* Sync ack parsing (accept/reject, never the real outcome)  */
+    /* -------------------------------------------------------- */
+
+    public ProviderPaymentResponse parseMoovSyncAck(String rawPayload) {
+        Document document = parseXml(rawPayload);
+        XPath xpath = XPathFactory.newInstance().newXPath();
+
+        String conversationId = evaluate(xpath, document, MOMO_CONVO_ID);
+        String responseCode = evaluate(xpath, document, MOMO_RESPONSE_CODE);
+        String responseDesc = evaluate(xpath, document, MOMO_RESPONSE_DESC);
+
+        if (responseCode.isBlank()) throw new CustomException(EExceptionCode.DATA_INCOHERENCE, "Moov sync ack is missing ResponseCode");
+
+        EProviderPaymentResultCode resultCode = SUCCESS_CODE_0.equals(responseCode.trim())
+                                                ? EProviderPaymentResultCode.PENDING
+                                                : EProviderPaymentResultCode.FAILED;
+
+        return ProviderPaymentResponse.builder()
+                                      .providerPaymentTransactionId(conversationId.isBlank() ? null : conversationId.trim())
+                                      .resultCode(resultCode)
+                                      .message(responseDesc)
+                                      .build();
+    }
+
+    /* -------------------------------------------------------- */
+    /* Shared XML mechanics                                      */
+    /* -------------------------------------------------------- */
+
     private Document parseXml(String rawPayload) {
         try {
             DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
             factory.setNamespaceAware(true);
             return factory.newDocumentBuilder().parse(new InputSource(new StringReader(rawPayload)));
         } catch (Exception ex) {
-            throw new CustomException(EExceptionCode.DATA_INCOHERENCE, "Malformed Moov callback XML: " + ex.getMessage());
+            throw new CustomException(EExceptionCode.DATA_INCOHERENCE, "Malformed Moov XML: " + ex.getMessage());
         }
     }
 
@@ -91,14 +129,7 @@ public class CallbackParserRegistry implements CallbackParser {
             String value = xpath.evaluate("//*[local-name()='" + localName + "']", document);
             return value == null ? "" : value;
         } catch (Exception ex) {
-            throw new CustomException(EExceptionCode.DATA_INCOHERENCE, "Malformed Moov callback XML: " + ex.getMessage());
+            throw new CustomException(EExceptionCode.DATA_INCOHERENCE, "Malformed Moov XML: " + ex.getMessage());
         }
-    }
-
-    /* -------------------------------------------------------- */
-    /* Airtel callback parser */
-    /* -------------------------------------------------------- */
-    private ProviderCallbackResult parseAirtelCallback(String rawPayload) {
-        throw new CustomException(EExceptionCode.DISABLED_FEATURE, "Airtel callback parsing is not implemented yet -- see AirtelCallbackParser's class javadoc");
     }
 }

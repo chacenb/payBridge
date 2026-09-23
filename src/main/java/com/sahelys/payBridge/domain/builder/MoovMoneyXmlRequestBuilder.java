@@ -5,8 +5,10 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 import static com.sahelys.payBridge.globals.MoovConfiguration.*;
+import static com.sahelys.payBridge.globals.utils.Utils.formatDate;
 
 @Component
 public class MoovMoneyXmlRequestBuilder {
@@ -27,10 +29,13 @@ public class MoovMoneyXmlRequestBuilder {
     private String channelCode;
 
     /**
-     * Merchant Payment
+     * Merchant Payment. {@code paymentTransactionId} is sent as the real
+     * {@code OriginatorConversationID} -- it's exactly what the later async callback echoes
+     * back for {@link com.sahelys.payBridge.provider.ProviderXmlParser} to correlate to
+     * the right transaction, so it must be the caller's real id, never a minted one.
      */
-    public String buildMerchantPaymentRequest(String customerMsisdn, String amount) {
-        ConversationId conversationInfos = buildConversationInfos();
+    public String buildMerchantPaymentRequest(UUID paymentTransactionId, String customerMsisdn, String amount) {
+        ConversationId conversationInfos = buildConversationInfos(paymentTransactionId);
         return """
                <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
                                  xmlns:api="http://cps.huawei.com/cpsinterface/api_requestmgr"
@@ -264,6 +269,17 @@ public class MoovMoneyXmlRequestBuilder {
         return ConversationId.builder()
                              .conversationId("SAPAYID_" + formattedDate)
                              .timestamp(formattedDate)
+                             .build();
+    }
+
+    /**
+     * Same shape as {@link #buildConversationInfos()}, but for callers that have a real
+     * correlation id to send instead of minting one -- see {@link #buildMerchantPaymentRequest(UUID, String, String)}.
+     */
+    private static ConversationId buildConversationInfos(UUID paymentTransactionId) {
+        return ConversationId.builder()
+                             .conversationId(paymentTransactionId.toString())
+                             .timestamp(formatDate(LocalDateTime.now()))
                              .build();
     }
 
