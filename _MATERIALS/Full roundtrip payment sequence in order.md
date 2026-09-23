@@ -60,6 +60,11 @@ curl -X POST http://172.31.63.50:9000/api/paybridge/v1/payment-transactions/7b9f
     "customerPhone": "24166855158"
   }'
 ```
+------
+RESPONSE
+```
+
+```
 This is the real one: builds the real XML with `<TXN_ID>` as `OriginatorConversationID`, sends it to Moov, and applies the sync ack. Expect `200`/`PROCESSING` (accepted, real outcome pending) or a `400 RUNTINE_EXCEPTION` if the call itself failed (network/TLS/credentials) — check the app log's `SOAP Request`/`SOAP Response` lines either way.
 
 
@@ -77,7 +82,11 @@ This is the real one: builds the real XML with `<TXN_ID>` as `OriginatorConversa
 curl http://172.31.63.50:9000/api/paybridge/v1/payment-transactions/<TXN_ID>
 ```
 Repeat this every few seconds. `status` moves from `PROCESSING` to `SUCCESS`/`FAILED` once Moov's real async callback arrives and gets correlated — that's the actual proof the round trip works, not just step 3's sync ack.
+------
+RESPONSE
+```
 
+```
 
 
 
@@ -90,6 +99,11 @@ Repeat this every few seconds. `status` moves from `PROCESSING` to `SUCCESS`/`FA
 **5. Once terminal, simulate the client notification**
 ```bash
 curl -X POST http://172.31.63.50:9000/api/paybridge/v1/payment-transactions/<TXN_ID>/notify-client
+```
+------
+RESPONSE
+```
+
 ```
 Only valid once step 4 shows a terminal status. Returns the full outcome payload (`clientAppId`, `amount`, `status`, `provider`, `providerPaymentTransactionId`, `completedAt`) — exactly what a real client app would receive. This is also the last check that the whole chain (transaction → linked `ClientPaymentRequest` → outbound payload construction) is intact.
 
@@ -107,5 +121,11 @@ Only valid once step 4 shows a terminal status. Returns the full outcome payload
 ```bash
 docker exec paybridge-postgres psql -U paybridge -d paybridge -c \
   "SELECT id, operator_code, processing_status, processing_error, received_at FROM operator_callbacks ORDER BY received_at DESC LIMIT 5;"
+```
+
+------
+RESPONSE
+```
+
 ```
 Run this on the preprod host itself. If a row shows up with `processing_status = FAILED`, `processing_error` tells you exactly why correlation failed (e.g. an `OriginatorConversationID` mismatch). If no row shows up at all, the callback never reached the server — a network/routing/registered-`ResultURL` problem on Moov's side, not an app bug.

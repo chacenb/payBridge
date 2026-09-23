@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLParameters;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
 import java.net.http.HttpClient;
@@ -41,6 +42,14 @@ public class MoovMoneyWebClient {
      * script's own "curl -k" -- Moov's endpoint doesn't present a certificate the JDK's
      * default trust store accepts. Defaults to false (skip verification) to match that
      * script; set MOOV_TLS_VERIFY=true once Moov's certificate is properly trusted.
+     *
+     * <p>"curl -k" skips two independent checks: certificate trust (handled below by the
+     * trust-all SSLContext) AND hostname/endpoint identification (the SAN-vs-connected-host
+     * match). {@code java.net.http.HttpClient} enforces the latter by default regardless of
+     * the installed TrustManager -- confirmed live against Moov's real endpoint
+     * (172.16.52.14), whose certificate has no SAN entries at all, failing with "No subject
+     * alternative names present" even with the trust-all context in place. Both must be
+     * disabled together to actually match curl -k.
      */
     @Value("${momo.tls-verify:false}")
     private boolean tlsVerify;
@@ -51,7 +60,12 @@ public class MoovMoneyWebClient {
     private void init() {
         HttpClient.Builder httpClientBuilder = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5));
 
-        if (!tlsVerify) httpClientBuilder.sslContext(trustAllSslContext());
+        if (!tlsVerify) {
+            httpClientBuilder.sslContext(trustAllSslContext());
+            SSLParameters sslParameters = new SSLParameters();
+            sslParameters.setEndpointIdentificationAlgorithm("");
+            httpClientBuilder.sslParameters(sslParameters);
+        }
 
         JdkClientHttpRequestFactory requestFactory = new JdkClientHttpRequestFactory(httpClientBuilder.build());
         int READ_TIME_OUT_SEC = 15;
