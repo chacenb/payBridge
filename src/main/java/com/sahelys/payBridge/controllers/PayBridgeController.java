@@ -1,10 +1,13 @@
 package com.sahelys.payBridge.controllers;
 
+import com.sahelys.payBridge.domain.dto.ClientPaymentRequestCallback;
 import com.sahelys.payBridge.domain.dto.WsResponse;
 import com.sahelys.payBridge.domain.entities.PaymentTransaction;
 import com.sahelys.payBridge.domain.enums.EPaymentOperator;
 import com.sahelys.payBridge.services.ClientPaymentRequestService;
 import com.sahelys.payBridge.services.PayBridgeService;
+import com.sahelys.payBridge.services.PaymentCallbackDeliveryService;
+import com.sahelys.payBridge.services.PaymentProviderSubmissionService;
 import com.sahelys.payBridge.services.PaymentTransactionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -18,9 +21,11 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class PayBridgeController implements IPayBridgeController {
 
-    private final PayBridgeService            payBridgeService;
-    private final ClientPaymentRequestService clientPaymentRequestService;
-    private final PaymentTransactionService   paymentTransactionService;
+    private final PayBridgeService                  payBridgeService;
+    private final ClientPaymentRequestService        clientPaymentRequestService;
+    private final PaymentTransactionService          paymentTransactionService;
+    private final PaymentCallbackDeliveryService     paymentCallbackDeliveryService;
+    private final PaymentProviderSubmissionService   paymentProviderSubmissionService;
 
     @Override
     public WsResponse<?> submitClientPaymentRequest(SubmitPaymentRequestBody request) {
@@ -35,19 +40,41 @@ public class PayBridgeController implements IPayBridgeController {
     @Override
     public WsResponse<?> getPaymentTransaction(UUID paymentTransactionId) {
         PaymentTransaction transaction = paymentTransactionService.findById(paymentTransactionId);
+        return paymentPageResponse(transaction);
+    }
+
+    @Override
+    public WsResponse<?> selectProvider(UUID paymentTransactionId, SelectProviderRequest request) {
+        PaymentTransaction transaction = paymentProviderSubmissionService.submitToProvider(
+                paymentTransactionId, request.getProviderCode(), request.getCustomerPhone());
+        return paymentPageResponse(transaction);
+    }
+
+    private WsResponse<?> paymentPageResponse(PaymentTransaction transaction) {
         PaymentPageResponse response = PaymentPageResponse.builder()
                                                           .paymentTransactionId(transaction.getId())
                                                           .amount(transaction.getAmount())
                                                           .currency(transaction.getCurrency())
                                                           .description(transaction.getDescription())
                                                           .status(transaction.getStatus())
-                                                          .selectedProvider(transaction.getProvider())
+                                                          .selectedProvider(transaction.getPaymentOperator())
                                                           .availableProviders(List.of(EPaymentOperator.values()))
                                                           .build();
         return WsResponse.<PaymentPageResponse>builder()
                          .timeStamp(ZonedDateTime.now())
                          .status(HttpStatus.OK)
                          .data(response)
+                         .build();
+    }
+
+    @Override
+    public WsResponse<?> notifyClient(UUID paymentTransactionId) {
+        PaymentTransaction transaction = paymentTransactionService.findById(paymentTransactionId);
+        ClientPaymentRequestCallback callback = paymentCallbackDeliveryService.notifyClientApp(transaction);
+        return WsResponse.<ClientPaymentRequestCallback>builder()
+                         .timeStamp(ZonedDateTime.now())
+                         .status(HttpStatus.OK)
+                         .data(callback)
                          .build();
     }
 

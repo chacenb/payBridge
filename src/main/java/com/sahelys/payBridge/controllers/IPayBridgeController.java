@@ -7,6 +7,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.Builder;
 import lombok.Getter;
@@ -38,6 +39,23 @@ public interface IPayBridgeController {
      */
     @GetMapping("/v1/payment-transactions/{paymentTransactionId}")
     WsResponse<?> getPaymentTransaction(@PathVariable UUID paymentTransactionId);
+
+    /**
+     * The explicit, payer-triggered "notify/return to client app" action -- e.g. a button on
+     * the Payment UI once the payer is done, not called automatically by outcome application
+     * (the payer opening paymentUrl isn't necessarily the client app's own session). Only
+     * valid once the transaction is terminal.
+     */
+    @PostMapping("/v1/payment-transactions/{paymentTransactionId}/notify-client")
+    WsResponse<?> notifyClient(@PathVariable UUID paymentTransactionId);
+
+    /**
+     * The payer's provider choice + phone number, submitted after viewing the payment page.
+     * Delegates to PaymentProviderSubmissionService.submitToProvider -- see its own javadoc
+     * for what happens synchronously (accept/reject) vs. later via the async callback.
+     */
+    @PostMapping("/v1/payment-transactions/{paymentTransactionId}/select-provider")
+    WsResponse<?> selectProvider(@PathVariable UUID paymentTransactionId, @Valid @RequestBody SelectProviderRequest request);
 
     @PostMapping("/v1/payments/merchant")
     WsResponse<?> initiatePaymentProcess(@RequestBody PaymentRequest request);
@@ -93,6 +111,24 @@ public interface IPayBridgeController {
         @NotBlank
         @URL(message = "callbackUrl must be a valid URL")
         private String callbackUrl;
+    }
+
+    @Getter @Setter @ToString
+    public class SelectProviderRequest {
+
+        @NotBlank
+        private String providerCode;
+
+        /**
+         * Gabon MSISDN, grounded in the real production samples in
+         * _MATERIALS/Endpoints_Moov_Money_PROD/ (InitTrans_OnlineMerchantPayment.xml,
+         * InitTrans_GiveChange.xml -- both use "24166855158"): country code 241 + an 8-digit
+         * subscriber number, 11 digits total, no "+", no leading "0". Backend is the source
+         * of truth here -- never trust the frontend's own validation.
+         */
+        @NotBlank
+        @Pattern(regexp = "^241[0-9]{8}$", message = "customerPhone must be a Gabon MSISDN in the format 241XXXXXXXX (11 digits)")
+        private String customerPhone;
     }
 
     /*--------------------------------------------------------*/

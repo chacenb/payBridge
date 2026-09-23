@@ -11,8 +11,14 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * The one place a provider result (whichever leg it came from -- the synchronous ack inside
  * PaymentProviderSubmissionService, or the later async callback inside
- * PaymentCallbackCorrelationService) is turned into a PaymentTransaction transition and,
- * if terminal, a client callback. Kept in one place so the two legs cannot drift apart.
+ * PaymentCallbackCorrelationService) is turned into a PaymentTransaction transition. Kept in
+ * one place so the two legs cannot drift apart.
+ *
+ * <p>Deliberately does NOT notify the client app here, even once terminal -- the payer
+ * opening the paymentUrl isn't necessarily the same session that originated the request on
+ * the client app (e.g. a shared link opened by someone else), so notifying/returning to the
+ * client app is a separate, explicit, payer-triggered action -- see
+ * {@link PaymentCallbackDeliveryService#notifyClientApp}.
  *
  * <p>MVP simplification: operates on PaymentTransaction directly -- no separate
  * PaymentAttempt layer (collapsed for the MVP).
@@ -21,8 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class PaymentOutcomeApplier {
 
-    private final PaymentTransactionService      transactionService;
-    private final PaymentCallbackDeliveryService deliveryService;
+    private final PaymentTransactionService transactionService;
 
     /**
      * Idempotent on repeat calls with the same status: a transition already at its target
@@ -30,13 +35,9 @@ public class PaymentOutcomeApplier {
      * enum forbids).
      */
     @Transactional
-    public PaymentTransaction apply(PaymentTransaction transaction, EProviderPaymentResultCode providerPaymentResultCode) {
-        EPaymentTransactionStatusCode targetStatus = ProviderStatusMapper.toTransactionStatus(providerPaymentResultCode);
-
-        if (transaction.getStatus() != targetStatus) transaction = transactionService.transitionPaymentTransactionStatus(transaction.getId(), targetStatus);
-
-        if (transaction.getStatus().isTerminal()) deliveryService.deliver(transaction);
-
+    public PaymentTransaction applyProviderCallbackResultCodeToLocalTransaction(PaymentTransaction transaction, EProviderPaymentResultCode providerPaymentResultCode) {
+        EPaymentTransactionStatusCode targetStatus = ProviderStatusMapper.toLocalTransactionStatus(providerPaymentResultCode);
+        if (transaction.getStatus() != targetStatus) transaction = transactionService.changeTransactionStatusTo(transaction.getId(), targetStatus);
         return transaction;
     }
 }
