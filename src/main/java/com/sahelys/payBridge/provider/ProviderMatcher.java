@@ -17,7 +17,7 @@ public class ProviderMatcher {
     private final MoovPaymentProvider moovPaymentProvider;
     private final AirtelPaymentProvider airtelPaymentProvider;
 
-    public PaymentProvider match(EPaymentOperator operator) {
+    public PaymentProvider getProviderFromOperator(EPaymentOperator operator) {
         return switch (operator) {
             case MOOV_MONEY -> moovPaymentProvider;
             case AIRTEL_MONEY -> airtelPaymentProvider;

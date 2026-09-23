@@ -25,11 +25,11 @@ import org.springframework.transaction.annotation.Transactional;
 @Service @RequiredArgsConstructor @Slf4j
 public class PaymentCallbackCorrelationService {
 
-    private final PaymentTransactionService transactionService;
+    private final PaymentTransactionService paymentTransactionService;
     private final PaymentOutcomeApplier     outcomeApplier;
 
     @Transactional
-    public ECorrelationOutcome correlate(ProviderCallbackResult result) {
+    public ECorrelationOutcome correlateCallbackResultToLocalTransaction(ProviderCallbackResult result) {
         // --- Unknown-transaction handling, commented out for the MVP happy path ---
         // Optional<PaymentTransaction> transactionOpt = transactionService.tryFindById(result.getPaymentTransactionId());
         //
@@ -39,14 +39,14 @@ public class PaymentCallbackCorrelationService {
         // }
         //
         // PaymentTransaction transaction = transactionOpt.get();
-        PaymentTransaction transaction = transactionService.findById(result.getPaymentTransactionId());
+        PaymentTransaction transaction = paymentTransactionService.findById(result.getPaymentTransactionId());
 
         if (result.getProviderPaymentTransactionId() != null && transaction.getProviderPaymentTransactionId() == null) {
-            transaction = transactionService.attachProviderTransactionId(transaction.getId(), result.getProviderPaymentTransactionId());
+            transaction = paymentTransactionService.attachProviderTransactionIdToLocalTransaction(transaction.getId(), result.getProviderPaymentTransactionId());
         }
 
         // --- Already-applied / already-terminal handling, commented out for the MVP happy path ---
-        // EPaymentTransactionStatusCode targetStatus = ProviderStatusMapper.toTransactionStatus(result.getProviderPaymentResultCode());
+        // EPaymentTransactionStatusCode targetStatus = ProviderStatusMapper.toLocalTransactionStatus(result.getProviderPaymentResultCode());
         //
         // if (transaction.getStatus() == targetStatus) {
         //     log.info("Duplicate callback for transaction {} -- already {}, ignored", transaction.getId(), transaction.getStatus());
@@ -58,7 +58,7 @@ public class PaymentCallbackCorrelationService {
         //     return ECorrelationOutcome.DUPLICATE_IGNORED;
         // }
 
-        outcomeApplier.apply(transaction, result.getProviderPaymentResultCode());
+        outcomeApplier.applyProviderCallbackResultCodeToLocalTransaction(transaction, result.getProviderPaymentResultCode());
         return ECorrelationOutcome.APPLIED;
     }
 }

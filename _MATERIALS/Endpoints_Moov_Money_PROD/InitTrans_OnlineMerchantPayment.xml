@@ -5,7 +5,7 @@
       <req:Header>
         <req:Version>1.0</req:Version>
         <req:CommandID>InitTrans_OnlineMerchantPayment</req:CommandID>
-        <req:OriginatorConversationID>SAPAYID_202609171334</req:OriginatorConversationID>
+        <req:OriginatorConversationID>SAPAYID_202609221001</req:OriginatorConversationID>
         <req:Caller>
           <req:CallerType>2</req:CallerType>
           <req:ThirdPartyID>SAHELYS</req:ThirdPartyID>
@@ -13,7 +13,7 @@
           <req:ResultURL>http://172.31.63.50:9000/sahelyspay/payment/callback</req:ResultURL>
         </req:Caller>
         <req:KeyOwner>1</req:KeyOwner>
-        <req:Timestamp>202609171334</req:Timestamp>
+        <req:Timestamp>202609221001</req:Timestamp>
         <req:ChannelCode>1010</req:ChannelCode>
       </req:Header>
       <req:Body>
@@ -42,7 +42,7 @@
               <com:Key>ChargePayer</com:Key>
               <com:Value>Subscriber</com:Value>
             </req:Parameter>
-            <req:Amount>100</req:Amount>
+            <req:Amount>500</req:Amount>
             <req:Currency>XAF</req:Currency>
           </req:Parameters>
         </req:TransactionRequest>

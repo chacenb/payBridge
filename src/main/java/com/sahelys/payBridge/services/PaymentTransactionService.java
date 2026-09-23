@@ -57,21 +57,21 @@ public class PaymentTransactionService {
     }
 
     @Transactional
-    public PaymentTransaction transitionPaymentTransactionStatus(UUID paymentTransactionId, EPaymentTransactionStatusCode targetTransacStatuc) {
+    public PaymentTransaction changeTransactionStatusTo(UUID paymentTransactionId, EPaymentTransactionStatusCode targetTransacStatuc) {
         PaymentTransaction transaction = findById(paymentTransactionId);
         transaction.transitionTo(targetTransacStatuc);
         return repository.save(transaction);
     }
 
     @Transactional
-    public PaymentTransaction attachProvider(UUID paymentTransactionId, EPaymentOperator provider) {
+    public PaymentTransaction attachPaymentOperatorToTransaction(UUID paymentTransactionId, EPaymentOperator provider) {
         PaymentTransaction transaction = findById(paymentTransactionId);
-        transaction.setProvider(provider);
+        transaction.setPaymentOperator(provider);
         return repository.save(transaction);
     }
 
     @Transactional
-    public PaymentTransaction attachProviderTransactionId(UUID paymentTransactionId, String providerPaymentTransactionId) {
+    public PaymentTransaction attachProviderTransactionIdToLocalTransaction(UUID paymentTransactionId, String providerPaymentTransactionId) {
         PaymentTransaction transaction = findById(paymentTransactionId);
         transaction.setProviderPaymentTransactionId(providerPaymentTransactionId);
         return repository.save(transaction);

@@ -31,4 +31,8 @@ public class AirtelPaymentProvider implements PaymentProvider {
     public ProviderPaymentResponse checkPayment(String providerPaymentTransactionId) {
         return new ProviderPaymentResponse();
     }
+
+    @Override public ProviderPaymentResponse giveChange() {
+        return null;
+    }
 }

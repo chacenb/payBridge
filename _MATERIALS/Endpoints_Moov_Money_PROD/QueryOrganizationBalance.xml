@@ -10,7 +10,7 @@
           <req:CallerType>2</req:CallerType>
           <req:ThirdPartyID>SAHELYS</req:ThirdPartyID>
           <req:Password>__PASSWORD__</req:Password>
-          <req:ResultURL>http://172.31.63.50:9000/sahelyspay/payment/callback</req:ResultURL>
+          <req:ResultURL>THE_URL</req:ResultURL>
         </req:Caller>
         <req:KeyOwner>1</req:KeyOwner>
         <req:Timestamp>20260601120000</req:Timestamp>

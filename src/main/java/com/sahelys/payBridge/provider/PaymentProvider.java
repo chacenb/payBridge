@@ -1,8 +1,12 @@
 package com.sahelys.payBridge.provider;
 
+import com.sahelys.payBridge.controllers.IPayBridgeController;
 import com.sahelys.payBridge.domain.dto.ProviderPaymentRequest;
 import com.sahelys.payBridge.domain.dto.ProviderPaymentResponse;
+import com.sahelys.payBridge.domain.dto.WsResponse;
 import com.sahelys.payBridge.domain.enums.EPaymentOperator;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 
 /**
  * PM-05 generic provider boundary -- architecture-reference section 11 / guardrail 8.
@@ -48,4 +52,7 @@ public interface PaymentProvider {
      * callback has arrived within the expected window.
      */
     ProviderPaymentResponse checkPayment(String providerPaymentTransactionId);
+
+    ProviderPaymentResponse giveChange();
+
 }

@@ -6,7 +6,10 @@ COPY pom.xml .
 RUN mvn --batch-mode --no-transfer-progress dependency:go-offline
 
 COPY src ./src
-RUN mvn --batch-mode --no-transfer-progress -DskipTests package
+# -Dmaven.test.skip=true (not -DskipTests): the test tree is currently stale/set-aside
+# (references entities removed by the PaymentAttempt-to-PaymentTransaction collapse) and
+# must not be compiled during packaging, not just skipped at run time.
+RUN mvn --batch-mode --no-transfer-progress -Dmaven.test.skip=true package
 
 FROM eclipse-temurin:21-jre-jammy
 

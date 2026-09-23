@@ -20,7 +20,7 @@ import java.util.UUID;
 /**
  * The single, frozen entry point for submitting a PaymentTransaction to a provider. Whoever
  * builds PM-04 (Payment UI, after the user picks a provider) or a future auto-dispatch calls
- * this -- and only this -- rather than each inventing their own "call provider, apply the
+ * this -- and only this -- rather than each inventing their own "call provider, applyProviderCallbackResultCodeToLocalTransaction the
  * sync-ack outcome" glue. That glue is exactly what tends to drift inconsistently across a
  * codebase once more than one person is building against it.
  *
@@ -52,16 +52,13 @@ public class PaymentProviderSubmissionService {
     public PaymentTransaction submitToProvider(UUID paymentTransactionId, String providerCode, String customerPhone) {
         PaymentTransaction transaction = transactionService.findById(paymentTransactionId);
 
-        if (transaction.getStatus().isTerminal())
-            throw new CustomException(EExceptionCode.DATA_INCOHERENCE, "PaymentTransaction " + paymentTransactionId + " is already " + transaction.getStatus());
+        if (transaction.getStatus().isTerminal()) throw new CustomException(EExceptionCode.DATA_INCOHERENCE, "PaymentTransaction " + paymentTransactionId + " is already " + transaction.getStatus());
 
         EPaymentOperator operator = parseOperator(providerCode);
-        PaymentProvider provider = providerMatcher.match(operator);
-        transaction = transactionService.attachProvider(paymentTransactionId, operator);
+        PaymentProvider paymentProvider = providerMatcher.getProviderFromOperator(operator);
+        transaction = transactionService.attachPaymentOperatorToTransaction(paymentTransactionId, operator);
 
-        if (transaction.getStatus() != EPaymentTransactionStatusCode.PROCESSING) {
-            transaction = transactionService.transitionPaymentTransactionStatus(paymentTransactionId, EPaymentTransactionStatusCode.PROCESSING);
-        }
+        if (transaction.getStatus() != EPaymentTransactionStatusCode.PROCESSING) transaction = transactionService.changeTransactionStatusTo(paymentTransactionId, EPaymentTransactionStatusCode.PROCESSING);
 
         ProviderPaymentRequest request = ProviderPaymentRequest.builder()
                                                                .paymentTransactionId(paymentTransactionId)
@@ -72,19 +69,17 @@ public class PaymentProviderSubmissionService {
 
         ProviderPaymentResponse response;
         try {
-            response = provider.initiatePayment(request);
+            response = paymentProvider.initiatePayment(request);
         } catch (Exception ex) {
-            log.error("Provider {} initiatePayment threw for transaction {} -- outcome is unknown, "
-                      + "transaction left as-is for reconciliation rather than assumed FAILED",
-                      providerCode, paymentTransactionId, ex);
+            log.error("Provider {} initiatePayment threw for transaction {} -- outcome is unknown, transaction left as-is for reconciliation rather than assumed FAILED", providerCode, paymentTransactionId, ex);
             throw new CustomException(EExceptionCode.RUNTINE_EXCEPTION, ex);
         }
 
         if (response.getProviderPaymentTransactionId() != null) {
-            transaction = transactionService.attachProviderTransactionId(paymentTransactionId, response.getProviderPaymentTransactionId());
+            transaction = transactionService.attachProviderTransactionIdToLocalTransaction(paymentTransactionId, response.getProviderPaymentTransactionId());
         }
 
-        return outcomeApplier.apply(transaction, response.getStatus());
+        return outcomeApplier.applyProviderCallbackResultCodeToLocalTransaction(transaction, response.getResultCode());
     }
 
     /**

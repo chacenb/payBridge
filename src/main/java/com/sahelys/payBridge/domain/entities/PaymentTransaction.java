@@ -69,7 +69,7 @@ public class PaymentTransaction {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "provider")
-    private EPaymentOperator provider;
+    private EPaymentOperator paymentOperator;
 
     @Column(name = "provider_payment_transaction_id")
     private String providerPaymentTransactionId;

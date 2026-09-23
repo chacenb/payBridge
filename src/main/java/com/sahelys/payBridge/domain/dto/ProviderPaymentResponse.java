@@ -11,6 +11,6 @@ import lombok.*;
 @Getter @Setter @ToString @Builder @NoArgsConstructor @AllArgsConstructor
 public class ProviderPaymentResponse {
     private String                     providerPaymentTransactionId;
-    private EProviderPaymentResultCode status;
+    private EProviderPaymentResultCode resultCode;
     private String                     message;
 }

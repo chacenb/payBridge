@@ -18,7 +18,7 @@ public final class ProviderStatusMapper {
     private ProviderStatusMapper() {
     }
 
-    public static EPaymentTransactionStatusCode toTransactionStatus(EProviderPaymentResultCode providerPaymentResultCode) {
+    public static EPaymentTransactionStatusCode toLocalTransactionStatus(EProviderPaymentResultCode providerPaymentResultCode) {
         return switch (providerPaymentResultCode) {
             case SUCCESS -> EPaymentTransactionStatusCode.SUCCESS;
             case FAILED -> EPaymentTransactionStatusCode.FAILED;

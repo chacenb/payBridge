@@ -33,7 +33,7 @@ import java.util.Arrays;
    *
    * @param str a string value from which we want to retrieve the Enum value
    * @return An instance of the enum EEtatStatut
-   * @throws CustomException if the provided string doexnt match any EEtatStatut entry
+   * @throws CustomException if the provided string doexnt getProviderFromOperator any EEtatStatut entry
    */
   public static EExceptionCode from(String str) {
     return Arrays.stream(values()).filter(it -> it.label.equals(str)).findAny()
