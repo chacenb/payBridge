@@ -19,8 +19,17 @@ public class MoovMoneyXmlRequestBuilder {
     @Value("${momo.password}")
     private String password;
 
-    @Value("${momo.result-url}")
-    private String resultUrl;
+    /**
+     * Base only (host:port), not the full ResultURL -- the path is derived from
+     * paybridge.callback.path below, the same path the app itself actually listens on, so the
+     * two can never drift apart (previously each was configured separately, with the exact
+     * same path string duplicated in both).
+     */
+    @Value("${momo.result-base-url}")
+    private String resultBaseUrl;
+
+    @Value("${paybridge.callback.path}")
+    private String callbackPath;
 
     @Value("${momo.key-owner:1}")
     private String keyOwner;
@@ -226,6 +235,7 @@ public class MoovMoneyXmlRequestBuilder {
 
 
     private String buildHeader(String commandId, ConversationId conversation) {
+        String resultUrl = resultBaseUrl + callbackPath;
         return """
                <req:Header>
                    <req:Version>1.0</req:Version>

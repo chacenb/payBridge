@@ -58,7 +58,9 @@ docker push sahelys/paybridge-standalone:latest
    credentials, `PAYBRIDGE_IMAGE=sahelys/paybridge-standalone:<next-version>`
    (pin to the specific version, not `latest`, so this deployment stays
    reproducible), and a
-   `MOMO_RESULT_URL` pointing at this host's own public address). Never commit
+   `MOMO_RESULT_BASE_URL` pointing at this host's own public address, base
+   only -- the callback path is appended automatically from
+   `PAYBRIDGE_CALLBACK_PATH`). Never commit
    `.env.preprod`.
 
 3. Pull and start, always passing `--env-file` explicitly -- `-f` alone does not
