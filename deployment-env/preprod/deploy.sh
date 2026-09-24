@@ -73,25 +73,56 @@ echo "-------------------------------------------"
 echo "==> Starting stack"
 compose up -d
 
-# Don't just trust "container started" -- poll the app's own health endpoint
-# so this script only reports success once it's actually serving traffic.
+# Don't just trust "container started" -- poll each service's own signal of
+# life so this script only reports success once the whole stack is actually
+# serving traffic, not just running.
 echo "-------------------------------------------"
-echo "==> Waiting for the app to report healthy"
+echo "==> Waiting for the backend to report healthy"
 PORT="$(grep -E '^PAYBRIDGE_PORT=' "$ENV_FILE" | tail -1 | cut -d= -f2)"
 PORT="${PORT:-9000}"
 
+BACKEND_UP=false
 # Up to 30 tries, 2s apart (~1 minute total) before giving up.
 for _ in $(seq 1 30); do
   if curl -s -o /dev/null -w '%{http_code}' "http://localhost:${PORT}/actuator/health" 2>/dev/null | grep -q '^200$'; then
-    echo "-------------------------------------------"
-    echo "==> Healthy on port ${PORT}"
-    exit 0
+    BACKEND_UP=true
+    break
   fi
   sleep 2
 done
 
-# Never became healthy in time -- surface the app's own recent logs instead
-# of leaving you to go dig them up by hand right after a failed deploy.
-echo "App did not report healthy in time -- recent logs:" >&2
-compose logs --tail=50 paybridge >&2
-exit 1
+if [ "$BACKEND_UP" != true ]; then
+  # Never became healthy in time -- surface the app's own recent logs instead
+  # of leaving you to go dig them up by hand right after a failed deploy.
+  echo "Backend did not report healthy in time -- recent logs:" >&2
+  compose logs --tail=50 paybridge >&2
+  exit 1
+fi
+echo "==> Backend healthy on port ${PORT}"
+
+# The frontend has no /actuator-style health endpoint -- a plain 200 on its
+# own root is enough to confirm nginx came up and is serving the SPA (see
+# nginx.conf's crash-at-boot fix: this would have caught that failure too).
+echo "-------------------------------------------"
+echo "==> Waiting for the frontend to respond"
+FRONT_PORT="$(grep -E '^PAYBRIDGE_FRONT_PORT=' "$ENV_FILE" | tail -1 | cut -d= -f2)"
+FRONT_PORT="${FRONT_PORT:-8081}"
+
+FRONTEND_UP=false
+for _ in $(seq 1 30); do
+  if curl -s -o /dev/null -w '%{http_code}' "http://localhost:${FRONT_PORT}/" 2>/dev/null | grep -q '^200$'; then
+    FRONTEND_UP=true
+    break
+  fi
+  sleep 2
+done
+
+if [ "$FRONTEND_UP" != true ]; then
+  echo "Frontend did not respond in time -- recent logs:" >&2
+  compose logs --tail=50 paybridge-front >&2
+  exit 1
+fi
+
+echo "-------------------------------------------"
+echo "==> Healthy: backend on port ${PORT}, frontend on port ${FRONT_PORT}"
+exit 0

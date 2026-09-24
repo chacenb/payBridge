@@ -24,6 +24,14 @@ services:
       postgres:
         condition: service_healthy
 
+  paybridge-front:
+    image: ${PAYBRIDGE_FRONT_IMAGE:?Set PAYBRIDGE_FRONT_IMAGE in .env.preprod, e.g. registry.example.com/sahelys/paybridge-front:1.0.0}
+    container_name: paybridge-front
+    ports:
+      - "${PAYBRIDGE_FRONT_PORT:-8081}:80"
+    depends_on:
+      - paybridge
+
   postgres:
     image: postgres:17-alpine
     # Fixed, explicit name so this container is identifiable in `docker ps`

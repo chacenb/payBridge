@@ -1,14 +1,16 @@
 #!/usr/bin/env bash
-# Follow PayBridge's (and Postgres's) container logs live on this host.
-# Run from anywhere -- resolves compose.preprod.yaml and .env.preprod next
-# to itself, same as deploy.sh.
+# Follow PayBridge's (backend, frontend, and Postgres) container logs live
+# on this host. Run from anywhere -- resolves compose.preprod.yaml and
+# .env.preprod next to itself, same as deploy.sh.
 #
 # Usage:
-#   ./logs.sh             # asks interactively what to follow
-#   ./logs.sh paybridge   # follow just the app, no prompt
-#   ./logs.sh postgres    # follow just the database, no prompt
-#   ./logs.sh backend     # alias for paybridge
-#   ./logs.sh db          # alias for postgres
+#   ./logs.sh                  # asks interactively what to follow
+#   ./logs.sh paybridge        # follow just the backend, no prompt
+#   ./logs.sh paybridge-front  # follow just the frontend, no prompt
+#   ./logs.sh postgres         # follow just the database, no prompt
+#   ./logs.sh backend          # alias for paybridge
+#   ./logs.sh frontend         # alias for paybridge-front
+#   ./logs.sh db               # alias for postgres
 
 set -euo pipefail
 
@@ -35,18 +37,21 @@ SERVICE="${1:-}"
 if [ -z "$SERVICE" ]; then
   echo "What do you want to log?"
   echo "  1) backend (paybridge)"
-  echo "  2) DB (postgres)"
-  read -rp "Choice [1/2, Enter = both]: " CHOICE
+  echo "  2) frontend (paybridge-front)"
+  echo "  3) DB (postgres)"
+  read -rp "Choice [1/2/3, Enter = all]: " CHOICE
   case "$CHOICE" in
     1) SERVICE="paybridge" ;;
-    2) SERVICE="postgres" ;;
-    "") SERVICE="" ;;          # Enter/blank -- both, no filter
-    *) echo "Unrecognized choice '$CHOICE', following both." >&2; SERVICE="" ;;
+    2) SERVICE="paybridge-front" ;;
+    3) SERVICE="postgres" ;;
+    "") SERVICE="" ;;          # Enter/blank -- all, no filter
+    *) echo "Unrecognized choice '$CHOICE', following all." >&2; SERVICE="" ;;
   esac
 else
   # Accept friendly aliases alongside the real compose service names.
   case "$SERVICE" in
     backend) SERVICE="paybridge" ;;
+    frontend|front) SERVICE="paybridge-front" ;;
     db) SERVICE="postgres" ;;
   esac
 fi
