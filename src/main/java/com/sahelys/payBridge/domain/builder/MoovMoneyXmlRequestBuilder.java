@@ -198,41 +198,6 @@ public class MoovMoneyXmlRequestBuilder {
                 formatDate(endDate));
     }
 
-    /**
-     * Query Organization Balance
-     */
-    public String buildQueryOrganizationBalanceRequest() {
-        ConversationId conversationInfos = buildConversationInfos();
-        return """
-               <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
-                                 xmlns:api="http://cps.huawei.com/cpsinterface/api_requestmgr"
-                                 xmlns:req="http://cps.huawei.com/cpsinterface/request"
-                                 xmlns:com="http://cps.huawei.com/cpsinterface/common">
-
-                   <soapenv:Header/>
-                   <soapenv:Body>
-                       <api:Request>
-                           %s
-                           <req:Body>
-                               <req:Identity>
-                                   %s
-                                   <req:ReceiverParty>
-                                       <req:IdentifierType>4</req:IdentifierType>
-                                       <req:Identifier>2076</req:Identifier>
-                                   </req:ReceiverParty>
-                               </req:Identity>
-                               <req:QueryOrganizationBalanceRequest>
-                                   <req:AccountType>SAHELYS Main Account</req:AccountType>
-                               </req:QueryOrganizationBalanceRequest>
-                           </req:Body>
-                       </api:Request>
-                   </soapenv:Body>
-               </soapenv:Envelope>
-               """.formatted(
-                buildHeader(QUERY_BALANCE, conversationInfos),
-                buildInitiator());
-    }
-
 
     private String buildHeader(String commandId, ConversationId conversation) {
         String resultUrl = resultBaseUrl + callbackPath;
