@@ -7,6 +7,7 @@ services:
     environment:
       SERVER_PORT: ${SERVER_PORT:-9000}
       PAYBRIDGE_CALLBACK_PATH: ${PAYBRIDGE_CALLBACK_PATH:-/sahelyspay/payment/callback}
+      PAYBRIDGE_CALLBACK_AIRTEL_PATH: ${PAYBRIDGE_CALLBACK_AIRTEL_PATH:-/sahelyspay/payment/callback/airtel}
       PAYBRIDGE_PUBLIC_BASE_URL: ${PAYBRIDGE_PUBLIC_BASE_URL:-http://localhost:9000}
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-paybridge}
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-paybridge}
