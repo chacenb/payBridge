@@ -4,14 +4,15 @@ import lombok.*;
 
 /**
  * What {@code SearchTransactionByExtID}'s real captured response actually carries -- see
- * {@code ProviderXmlParser#parseMoovSearchTransactionResult}. Deliberately has no
- * success/failure field: the one captured sample only confirms the search found a match and
- * when it completed, never the underlying transaction's outcome. Do not add one without a real
- * captured sample to back it -- see that method's own comment.
+ * {@code ProviderXmlParser#parseMoovSearchTransactionResult}. Deliberately a plain relay of the
+ * raw fields (no success/failure field, no derived "found" flag): the one captured sample only
+ * confirms a result code/description for the search itself and when the transaction completed,
+ * never the underlying transaction's outcome. Do not add an interpreted field to this without a
+ * real captured sample to back it -- see that method's own comment.
  */
 @Getter @Setter @ToString @Builder @NoArgsConstructor @AllArgsConstructor
 public class ProviderSearchResult {
-    private boolean found;
-    private String  completedAt;
-    private String  message;
+    private String resultCode;
+    private String resultDesc;
+    private String completedAt;
 }

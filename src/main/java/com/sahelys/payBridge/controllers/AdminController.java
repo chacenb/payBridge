@@ -10,6 +10,10 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -24,17 +28,16 @@ public class AdminController implements IAdminController {
      */
     private static final int MAX_PAGE_SIZE = 100;
 
-    private static final String OUTCOME_UNCONFIRMED_NOTE =
-            "Provider confirms this transaction reached a terminal state, but success/failure "
-            + "could not be determined from this response -- verify manually.";
-
     private final PaymentTransactionService    paymentTransactionService;
     private final PaymentReconciliationService reconciliationService;
 
     @Override
-    public WsResponse<?> listPaymentTransactions(int page, int size) {
+    public WsResponse<?> listPaymentTransactions(int page, int size, LocalDate startDate, LocalDate endDate) {
         int clampedSize = Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
-        Page<PaymentTransaction> result = paymentTransactionService.findAll(PageRequest.of(page, clampedSize));
+        OffsetDateTime createdFrom = startDate == null ? null : startDate.atStartOfDay().atOffset(ZoneOffset.UTC);
+        OffsetDateTime createdTo = endDate == null ? null : endDate.atTime(LocalTime.of(23, 59, 59)).atOffset(ZoneOffset.UTC);
+
+        Page<PaymentTransaction> result = paymentTransactionService.findAll(createdFrom, createdTo, PageRequest.of(page, clampedSize));
 
         List<PaymentTransactionSummary> summaries = result.getContent().stream()
                                                           .map(this::toSummary)
@@ -50,16 +53,17 @@ public class AdminController implements IAdminController {
     }
 
     @Override
-    public WsResponse<?> reconcileWithProvider(UUID paymentTransactionId) {
-        PaymentReconciliationService.ReconciliationOutcome outcome = reconciliationService.reconcileWithProvider(paymentTransactionId);
+    public WsResponse<?> reconcileWithProvider(UUID paymentTransactionId, LocalDate startDate, LocalDate endDate) {
+        PaymentReconciliationService.ReconciliationOutcome outcome =
+                reconciliationService.reconcileWithProvider(paymentTransactionId, startDate, endDate);
 
         ReconciliationResponse response = ReconciliationResponse.builder()
                                                                  .paymentTransactionId(outcome.transaction().getId())
                                                                  .localStatus(outcome.transaction().getStatus())
-                                                                 .providerFound(outcome.providerFound())
+                                                                 .queriedProvider(outcome.queriedProvider())
+                                                                 .providerResultCode(outcome.providerResultCode())
+                                                                 .providerResultDesc(outcome.providerResultDesc())
                                                                  .providerCompletedAt(outcome.providerCompletedAt())
-                                                                 .providerMessage(outcome.providerMessage())
-                                                                 .note(outcome.providerFound() ? OUTCOME_UNCONFIRMED_NOTE : null)
                                                                  .build();
 
         return WsResponse.<ReconciliationResponse>builder()

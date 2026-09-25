@@ -117,12 +117,13 @@ public class ProviderXmlParser {
      * The one real captured sample ({@code _MATERIALS/responses_prod/response-SearchTransactionByExtID-*.xml})
      * only ever shows a found-and-completed transaction: {@code ResultCode=0} +
      * {@code SearchTransactionByExtIDResult/BOCompletedTime}. There is no captured not-found or
-     * found-but-failed sample, so unlike {@link #parseMoovAsyncCallback}/{@link #parseMoovSyncAck}
-     * this deliberately does NOT resolve to {@link EProviderPaymentResultCode} -- there is no
-     * evidence for what would distinguish a successful transaction from a failed one here, only
-     * whether Moov found a match and when it completed. {@code found} is a best-effort read of
-     * that one sample (0 + a populated completion time); revisit once a not-found/failed sample
-     * exists instead of assuming this covers every case.
+     * found-but-failed sample. So unlike {@link #parseMoovAsyncCallback}/{@link #parseMoovSyncAck}
+     * this deliberately does NOT resolve to {@link EProviderPaymentResultCode}, and does NOT
+     * derive any interpreted flag (e.g. a "found" boolean) either -- that would itself be a
+     * guess about what an absent/different {@code BOCompletedTime} means. This just relays
+     * exactly the three fields the real response actually carries
+     * ({@code ResultCode}/{@code ResultDesc}/{@code BOCompletedTime}, the last one nullable) and
+     * lets the caller decide what to do with them. Revisit once a not-found/failed sample exists.
      */
     public ProviderSearchResult parseMoovSearchTransactionResult(String rawPayload) {
         Document document = parseXml(rawPayload);
@@ -134,12 +135,10 @@ public class ProviderXmlParser {
 
         if (resultCode.isBlank()) throw new CustomException(EExceptionCode.DATA_INCOHERENCE, "Moov search response is missing ResultCode");
 
-        boolean found = SUCCESS_CODE_0.equals(resultCode.trim()) && !boCompletedTime.isBlank();
-
         return ProviderSearchResult.builder()
-                                   .found(found)
+                                   .resultCode(resultCode.trim())
+                                   .resultDesc(resultDesc.isBlank() ? null : resultDesc.trim())
                                    .completedAt(boCompletedTime.isBlank() ? null : boCompletedTime.trim())
-                                   .message(resultDesc)
                                    .build();
     }
 

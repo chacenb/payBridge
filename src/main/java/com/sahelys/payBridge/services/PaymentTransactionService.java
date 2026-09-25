@@ -13,6 +13,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.OffsetDateTime;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -59,10 +60,22 @@ public class PaymentTransactionService {
     }
 
     /**
-     * Local-DB-only listing for the admin dashboard -- no provider call, no reconciliation.
+     * Well within Postgres's valid timestamptz range but far outside any real transaction's
+     * date, so they're safe stand-ins for "no lower/upper bound" -- see {@link #findAll} below.
      */
-    public Page<PaymentTransaction> findAll(Pageable pageable) {
-        return repository.findAll(pageable);
+    private static final OffsetDateTime NO_LOWER_BOUND = OffsetDateTime.parse("1970-01-01T00:00:00Z");
+    private static final OffsetDateTime NO_UPPER_BOUND = OffsetDateTime.parse("2999-12-31T23:59:59Z");
+
+    /**
+     * Local-DB-only listing for the admin dashboard -- no provider call, no reconciliation.
+     * {@code createdFrom}/{@code createdTo} are each optional independently; a null bound is
+     * substituted with a sentinel far outside any real data rather than left as a null bind
+     * parameter -- {@link PaymentTransactionRepository#findByCreatedAtBetween} explains why.
+     */
+    public Page<PaymentTransaction> findAll(OffsetDateTime createdFrom, OffsetDateTime createdTo, Pageable pageable) {
+        OffsetDateTime from = createdFrom != null ? createdFrom : NO_LOWER_BOUND;
+        OffsetDateTime to = createdTo != null ? createdTo : NO_UPPER_BOUND;
+        return repository.findByCreatedAtBetween(from, to, pageable);
     }
 
     @Transactional

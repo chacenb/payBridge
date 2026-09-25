@@ -11,6 +11,8 @@ import com.sahelys.payBridge.provider.ProviderXmlParser;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.UUID;
 
@@ -24,7 +26,7 @@ import java.util.UUID;
  * deliberately does NOT call {@link PaymentOutcomeApplier} either: the real captured response
  * for this command carries no success/failure signal (see {@link ProviderXmlParser#parseMoovSearchTransactionResult}),
  * so there is nothing confident to apply -- the local transaction's status is never mutated
- * here, only surfaced alongside whatever the provider says.
+ * here, the raw provider fields are just relayed alongside it.
  *
  * <p>Moov only, same as everywhere else in this codebase that hasn't had real Airtel evidence
  * yet -- rejects outright rather than guessing at an Airtel equivalent.
@@ -38,12 +40,16 @@ public class PaymentReconciliationService {
     private final MoovMoneyWebClient           webClient;
     private final ProviderXmlParser            xmlParser;
 
-    public ReconciliationOutcome reconcileWithProvider(UUID paymentTransactionId) {
+    /**
+     * {@code startDate}/{@code endDate} are supplied by the caller (the admin dashboard) rather
+     * than derived here -- the search window is the admin's call to make, e.g. widening it if
+     * the transaction's exact processing day on Moov's side is uncertain.
+     */
+    public ReconciliationOutcome reconcileWithProvider(UUID paymentTransactionId, LocalDate startDate, LocalDate endDate) {
         PaymentTransaction transaction = transactionService.findById(paymentTransactionId);
 
         if (transaction.getStatus().isTerminal()) {
-            return new ReconciliationOutcome(transaction, false, null,
-                    "Transaction is already " + transaction.getStatus() + " locally -- provider not queried.");
+            return new ReconciliationOutcome(transaction, false, null, null, null);
         }
 
         if (transaction.getProviderPaymentTransactionId() == null) {
@@ -55,12 +61,8 @@ public class PaymentReconciliationService {
                     "Provider reconciliation is only implemented for MOOV_MONEY currently");
         }
 
-        // Matches the one real captured sample's own window: a single calendar day, the day
-        // this transaction was created. Reconciling long after creation may need a wider
-        // window -- not evidenced yet, so not guessed at here.
-        var createdDate = transaction.getCreatedAt().toLocalDate();
-        var startOfDay = createdDate.atStartOfDay();
-        var endOfDay = createdDate.atTime(LocalTime.of(23, 59, 59));
+        LocalDateTime startOfDay = startDate.atStartOfDay();
+        LocalDateTime endOfDay = endDate.atTime(LocalTime.of(23, 59, 59));
 
         String xmlRequest = xmlRequestBuilder.buildSearchTransactionByExtIdRequest(
                 transaction.getProviderPaymentTransactionId(), startOfDay, endOfDay);
@@ -75,10 +77,17 @@ public class PaymentReconciliationService {
             throw new CustomException(EExceptionCode.RUNTINE_EXCEPTION, ex);
         }
 
-        return new ReconciliationOutcome(transaction, result.isFound(), result.getCompletedAt(), result.getMessage());
+        return new ReconciliationOutcome(transaction, true, result.getResultCode(), result.getResultDesc(), result.getCompletedAt());
     }
 
-    public record ReconciliationOutcome(PaymentTransaction transaction, boolean providerFound,
-                                         String providerCompletedAt, String providerMessage) {
+    /**
+     * {@code queriedProvider} is a fact about what this call did (skipped when already terminal),
+     * never a guess about the provider's data. The three {@code provider*} fields are the raw,
+     * unmodified fields {@link ProviderXmlParser#parseMoovSearchTransactionResult} returned --
+     * null (not defaulted/interpreted) whenever {@code queriedProvider} is false.
+     */
+    public record ReconciliationOutcome(PaymentTransaction transaction, boolean queriedProvider,
+                                         String providerResultCode, String providerResultDesc,
+                                         String providerCompletedAt) {
     }
 }
