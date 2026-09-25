@@ -46,7 +46,9 @@ public class ClientPaymentRequestService {
 
         return PaymentResponse.builder()
                               .paymentTransactionId(transaction.getId())
-                              .paymentUrl(publicBaseUrl + "/pay/" + transaction.getId())
+                              // The frontend SPA uses HashLocationStrategy (app.config.ts) --
+                              // routes are only reachable via the #/... fragment, not a real path.
+                              .paymentUrl(publicBaseUrl + "/#/pay/" + transaction.getId())
                               .status(transaction.getStatus())
                               .build();
     }
