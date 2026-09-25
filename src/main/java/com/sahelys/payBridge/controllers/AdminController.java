@@ -2,6 +2,7 @@ package com.sahelys.payBridge.controllers;
 
 import com.sahelys.payBridge.domain.dto.WsResponse;
 import com.sahelys.payBridge.domain.entities.PaymentTransaction;
+import com.sahelys.payBridge.services.PaymentReconciliationService;
 import com.sahelys.payBridge.services.PaymentTransactionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -11,6 +12,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.time.ZonedDateTime;
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequiredArgsConstructor
@@ -22,7 +24,12 @@ public class AdminController implements IAdminController {
      */
     private static final int MAX_PAGE_SIZE = 100;
 
-    private final PaymentTransactionService paymentTransactionService;
+    private static final String OUTCOME_UNCONFIRMED_NOTE =
+            "Provider confirms this transaction reached a terminal state, but success/failure "
+            + "could not be determined from this response -- verify manually.";
+
+    private final PaymentTransactionService    paymentTransactionService;
+    private final PaymentReconciliationService reconciliationService;
 
     @Override
     public WsResponse<?> listPaymentTransactions(int page, int size) {
@@ -39,6 +46,26 @@ public class AdminController implements IAdminController {
                          .data(summaries)
                          .page(result.getNumber())
                          .total((int) result.getTotalElements())
+                         .build();
+    }
+
+    @Override
+    public WsResponse<?> reconcileWithProvider(UUID paymentTransactionId) {
+        PaymentReconciliationService.ReconciliationOutcome outcome = reconciliationService.reconcileWithProvider(paymentTransactionId);
+
+        ReconciliationResponse response = ReconciliationResponse.builder()
+                                                                 .paymentTransactionId(outcome.transaction().getId())
+                                                                 .localStatus(outcome.transaction().getStatus())
+                                                                 .providerFound(outcome.providerFound())
+                                                                 .providerCompletedAt(outcome.providerCompletedAt())
+                                                                 .providerMessage(outcome.providerMessage())
+                                                                 .note(outcome.providerFound() ? OUTCOME_UNCONFIRMED_NOTE : null)
+                                                                 .build();
+
+        return WsResponse.<ReconciliationResponse>builder()
+                         .timeStamp(ZonedDateTime.now())
+                         .status(HttpStatus.OK)
+                         .data(response)
                          .build();
     }
 

@@ -11,6 +11,8 @@ public class Globals {
     public static final String MOMO_RESPONSE_CODE = "ResponseCode";
     public static final String MOMO_RESPONSE_DESC = "ResponseDesc";
 
+    public static final String MOMO_BO_COMPLETED_TIME = "BOCompletedTime";
+
     public static final String DATE_FORMAT              = "yyyyMMddHHmmss";
 
 }

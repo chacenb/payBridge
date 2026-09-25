@@ -165,7 +165,7 @@ public class MoovMoneyXmlRequestBuilder {
     }
 
 
-    public String buildSearchTransactionByExtIdRequest(LocalDateTime startDate, LocalDateTime endDate) {
+    public String buildSearchTransactionByExtIdRequest(String originalConversationId, LocalDateTime startDate, LocalDateTime endDate) {
         ConversationId conversationInfos = buildConversationInfos();
         return """
                <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
@@ -193,7 +193,7 @@ public class MoovMoneyXmlRequestBuilder {
                """.formatted(
                 buildHeader(SEARCH_TRANSACTION_BY_ID, conversationInfos),
                 buildInitiator(),
-                "SEARCH_" + conversationInfos.conversationId,
+                originalConversationId,
                 formatDate(startDate),
                 formatDate(endDate));
     }

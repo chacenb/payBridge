@@ -8,6 +8,7 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
@@ -38,6 +39,17 @@ public interface IAdminController {
     WsResponse<?> listPaymentTransactions(@RequestParam(defaultValue = "0") int page,
                                            @RequestParam(defaultValue = "20") int size);
 
+    /**
+     * Forces a live {@code SearchTransactionByExtID} query against Moov and surfaces what it
+     * says, without ever silently trusting it: the real captured response for this command has
+     * no success/failure field, only whether a match was found and when it completed (see
+     * {@link com.sahelys.payBridge.provider.ProviderXmlParser#parseMoovSearchTransactionResult}),
+     * so the local transaction's status is never changed by this call -- see
+     * {@link ReconciliationResponse#note}.
+     */
+    @GetMapping("/v1/payment-transactions/{paymentTransactionId}/search-with-provider")
+    WsResponse<?> reconcileWithProvider(@PathVariable UUID paymentTransactionId);
+
     /*--------------------------------------------------------*/
     /* Response models ----------------------------------------*/
     /*--------------------------------------------------------*/
@@ -56,6 +68,22 @@ public interface IAdminController {
         private EPaymentTransactionStatusCode status;
         private EPaymentOperator              selectedProvider;
         private OffsetDateTime                createdAt;
+    }
+
+    /**
+     * {@code localStatus} is always the transaction's actual, unchanged local status --
+     * {@code reconcileWithProvider} never mutates it. {@code note} is only populated when
+     * {@code providerFound} is true, spelling out in the response itself (not just a code
+     * comment) that "found" is not the same as "succeeded".
+     */
+    @Getter @Setter @ToString @Builder
+    public class ReconciliationResponse {
+        private UUID                          paymentTransactionId;
+        private EPaymentTransactionStatusCode localStatus;
+        private boolean                       providerFound;
+        private String                        providerCompletedAt;
+        private String                        providerMessage;
+        private String                        note;
     }
 
 }
