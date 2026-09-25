@@ -1,0 +1,56 @@
+services:
+  paybridge:
+    build:
+      context: ./../..
+    container_name: paybridge-standalone-back
+    ports:
+      - "${PAYBRIDGE_PORT:-9000}:${SERVER_PORT:-9000}"
+    environment:
+      SERVER_PORT: ${SERVER_PORT:-9000}
+      PAYBRIDGE_CALLBACK_PATH: ${PAYBRIDGE_CALLBACK_PATH:-/sahelyspay/payment/callback}
+      PAYBRIDGE_CALLBACK_AIRTEL_PATH: ${PAYBRIDGE_CALLBACK_AIRTEL_PATH:-/sahelyspay/payment/callback/airtel}
+      PAYBRIDGE_PUBLIC_BASE_URL: ${PAYBRIDGE_PUBLIC_BASE_URL:-http://localhost:9000}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-paybridge}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-paybridge}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      MOMO_THIRD_PARTY_ID: ${MOMO_THIRD_PARTY_ID:-}
+      MOMO_PASSWORD: ${MOMO_PASSWORD:-}
+      MOMO_RESULT_BASE_URL: ${MOMO_RESULT_BASE_URL:-}
+      MOMO_KEY_OWNER: ${MOMO_KEY_OWNER:-1}
+      MOMO_CHANNEL_CODE: ${MOMO_CHANNEL_CODE:-1010}
+      MOMO_BASE_URL: ${MOMO_BASE_URL:-}
+      MOMO_PAYMENT_ENDPOINT: ${MOMO_PAYMENT_ENDPOINT:-/APIRequestMgrService}
+      MOMO_SYNC_ENDPOINT: ${MOMO_SYNC_ENDPOINT:-/SYNCAPIRequestMgrService}
+      MOOV_TLS_VERIFY: ${MOOV_TLS_VERIFY:-false}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  paybridge-front:
+    build:
+      context: ./../../../paybridge-front
+    container_name: paybridge-standalone-front
+    ports:
+      - "${PAYBRIDGE_FRONT_PORT:-8081}:80"
+    depends_on:
+      - paybridge
+
+  postgres:
+    image: postgres:17-alpine
+    container_name: paybridge-standalone-postgres
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-paybridge}
+      POSTGRES_USER: ${POSTGRES_USER:-paybridge}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+volumes:
+  postgres-data:

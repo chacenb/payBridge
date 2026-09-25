@@ -4,6 +4,7 @@
 target
 ${logsBaseDir}
 _MATERIALS
+_deployment_env
 .TRASH/deployment-profiles
 payBridge.rar
 .env
