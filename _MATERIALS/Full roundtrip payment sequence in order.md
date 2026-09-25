@@ -7,12 +7,12 @@ Full sequence, in order, each with what it does and why it's there.
 curl -X POST http://172.31.63.50:9000/api/paybridge/v1/submit-payment-request \
   -H "Content-Type: application/json" \
   -d '{
-    "clientAppId": "CHACE",
-    "clientPaymentRequestId": "CHACE-LIVE-TEST-001",
+    "clientAppId": "POC-BILLETIQUE",
+    "clientPaymentRequestId": "POC-BILLETIQUE-LIVE-TEST-001",
     "amount": 100,
     "currency": "XAF",
     "description": "Live Moov round-trip test",
-    "callbackUrl": "https://example.com/callback"
+    "callbackUrl": "https://poc-billetique/payment-callback"
   }'
 ```
 ------
