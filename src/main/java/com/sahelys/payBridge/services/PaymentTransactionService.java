@@ -8,6 +8,8 @@ import com.sahelys.payBridge.globals.exceptions.CustomException;
 import com.sahelys.payBridge.globals.exceptions.EExceptionCode;
 import com.sahelys.payBridge.repository.PaymentTransactionRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -54,6 +56,13 @@ public class PaymentTransactionService {
 
     public Optional<PaymentTransaction> findByClientPaymentRequestRef(UUID clientPaymentRequestRef) {
         return repository.findByClientPaymentRequestRef(clientPaymentRequestRef);
+    }
+
+    /**
+     * Local-DB-only listing for the admin dashboard -- no provider call, no reconciliation.
+     */
+    public Page<PaymentTransaction> findAll(Pageable pageable) {
+        return repository.findAll(pageable);
     }
 
     @Transactional
