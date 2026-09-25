@@ -7,6 +7,7 @@ services:
     environment:
       SERVER_PORT: ${SERVER_PORT:-9000}
       PAYBRIDGE_CALLBACK_PATH: ${PAYBRIDGE_CALLBACK_PATH:-/sahelyspay/payment/callback}
+      PAYBRIDGE_PUBLIC_BASE_URL: ${PAYBRIDGE_PUBLIC_BASE_URL:-http://localhost:9000}
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-paybridge}
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-paybridge}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
@@ -27,7 +28,7 @@ services:
     image: ${PAYBRIDGE_FRONT_IMAGE:?Set PAYBRIDGE_FRONT_IMAGE in .env.preprod, e.g. registry.example.com/sahelys/paybridge-front:1.0.0}
     container_name: paybridge-standalone-front
     ports:
-      - "${PAYBRIDGE_FRONT_PORT:-8082}:80"
+      - "${PAYBRIDGE_FRONT_PORT:-9001}:80"
     depends_on:
       - paybridge
 

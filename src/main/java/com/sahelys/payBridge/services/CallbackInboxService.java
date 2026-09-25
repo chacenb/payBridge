@@ -70,12 +70,11 @@ public class CallbackInboxService {
     }
 
     private void _processOperatorCallback(EPaymentOperator operator, OperatorCallback callback) {
-        log.info("Processing {} callback {}", operator, callback.getId());
         try {
             ProviderCallbackResult callbackResult = parser.parseAsyncCallback(operator, callback.getRawPayload());
             ECorrelationOutcome outcome = correlationService.correlateCallbackResultToLocalTransaction(callbackResult);
             callback.setProcessingStatus(EOperatorCallbackProcessingStatus.PROCESSED);
-            log.info("Processed operator callback {} -> {}", callback.getId(), outcome);
+            log.info("Processed {} callback {} -> {}", operator, callback.getId(), outcome);
         } catch (CustomException ex) {
             // Expected failure: malformed payload, unknown transaction, illegal transition --
             // the message alone is the useful diagnostic, no stack trace needed.

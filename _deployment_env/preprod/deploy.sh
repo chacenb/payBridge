@@ -106,7 +106,7 @@ echo "==> Backend healthy on port ${PORT}"
 echo "-------------------------------------------"
 echo "==> Waiting for the frontend to respond"
 FRONT_PORT="$(grep -E '^PAYBRIDGE_FRONT_PORT=' "$ENV_FILE" | tail -1 | cut -d= -f2)"
-FRONT_PORT="${FRONT_PORT:-8081}"
+FRONT_PORT="${FRONT_PORT:-9001}"
 
 FRONTEND_UP=false
 for _ in $(seq 1 30); do
