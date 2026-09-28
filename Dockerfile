@@ -27,4 +27,5 @@ USER paybridge
 
 EXPOSE 9000
 
-ENTRYPOINT ["java", "-jar", "/app/app.jar"]
+# Limit the memory usage of the JVM to 256MB, with a minimum heap size of 64MB as the server doesnt have a lot of memory to spare.
+ENTRYPOINT ["java", "-Xms64m", "-Xmx256m", "-jar", "/app/app.jar"]

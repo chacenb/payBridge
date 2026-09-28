@@ -24,6 +24,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    mem_limit: ${CONTAINER_MEMORY_LIMIT:-384m}
+    restart: unless-stopped
 
   paybridge-front:
     image: ${PAYBRIDGE_FRONT_IMAGE:?Set PAYBRIDGE_FRONT_IMAGE in .env.preprod, e.g. registry.example.com/sahelys/paybridge-front:1.0.0}
