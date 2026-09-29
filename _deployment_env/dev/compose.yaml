@@ -25,7 +25,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    mem_limit: ${CONTAINER_MEMORY_LIMIT:-384m}
+    mem_limit: ${CONTAINER_MEMORY_LIMIT:-512m}
     restart: unless-stopped
 
   paybridge-front:
