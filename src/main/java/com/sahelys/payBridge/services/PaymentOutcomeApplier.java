@@ -14,11 +14,9 @@ import org.springframework.transaction.annotation.Transactional;
  * PaymentCallbackCorrelationService) is turned into a PaymentTransaction transition. Kept in
  * one place so the two legs cannot drift apart.
  *
- * <p>Deliberately does NOT notify the client app here, even once terminal -- the payer
- * opening the paymentUrl isn't necessarily the same session that originated the request on
- * the client app (e.g. a shared link opened by someone else), so notifying/returning to the
- * client app is a separate, explicit, payer-triggered action -- see
- * {@link PaymentCallbackDeliveryService#notifyClientApp}.
+ * <p>Does not notify the client app itself: reaching a terminal status publishes an event
+ * from {@link PaymentTransactionService#changeTransactionStatusTo}, delivered after commit by
+ * {@link PaymentCallbackDeliveryService#onPaymentTransactionTerminated}.
  *
  * <p>MVP simplification: operates on PaymentTransaction directly -- no separate
  * PaymentAttempt layer (collapsed for the MVP).

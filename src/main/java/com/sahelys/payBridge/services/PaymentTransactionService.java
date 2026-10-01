@@ -4,10 +4,12 @@ import com.sahelys.payBridge.domain.entities.ClientPaymentRequest;
 import com.sahelys.payBridge.domain.entities.PaymentTransaction;
 import com.sahelys.payBridge.domain.enums.EPaymentOperator;
 import com.sahelys.payBridge.domain.enums.EPaymentTransactionStatusCode;
+import com.sahelys.payBridge.domain.events.PaymentTransactionTerminatedEvent;
 import com.sahelys.payBridge.globals.exceptions.CustomException;
 import com.sahelys.payBridge.globals.exceptions.EExceptionCode;
 import com.sahelys.payBridge.repository.PaymentTransactionRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -28,6 +30,7 @@ import java.util.UUID;
 public class PaymentTransactionService {
 
     private final PaymentTransactionRepository repository;
+    private final ApplicationEventPublisher    eventPublisher;
 
     @Transactional
     public PaymentTransaction create(ClientPaymentRequest clientPaymentRequest) {
@@ -82,7 +85,11 @@ public class PaymentTransactionService {
     public PaymentTransaction changeTransactionStatusTo(UUID paymentTransactionId, EPaymentTransactionStatusCode targetTransacStatuc) {
         PaymentTransaction transaction = findById(paymentTransactionId);
         transaction.transitionTo(targetTransacStatuc);
-        return repository.save(transaction);
+        PaymentTransaction saved = repository.save(transaction);
+        // Delivered to the client app only after the surrounding transaction commits -- see
+        // PaymentCallbackDeliveryService#onPaymentTransactionTerminated.
+        if (saved.getStatus().isTerminal()) eventPublisher.publishEvent(new PaymentTransactionTerminatedEvent(saved));
+        return saved;
     }
 
     @Transactional

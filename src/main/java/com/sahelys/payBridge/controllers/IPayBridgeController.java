@@ -40,10 +40,9 @@ public interface IPayBridgeController {
     WsResponse<?> getPaymentTransaction(@PathVariable UUID paymentTransactionId);
 
     /**
-     * The explicit, payer-triggered "notify/return to client app" action -- e.g. a button on
-     * the Payment UI once the payer is done, not called automatically by outcome application
-     * (the payer opening paymentUrl isn't necessarily the client app's own session). Only
-     * valid once the transaction is terminal.
+     * Manually (re-)sends the client app notification. The same notification is already sent
+     * automatically once the transaction is saved in a terminal status -- this endpoint is for
+     * re-sending it. Only valid once the transaction is terminal.
      */
     @PostMapping("/v1/payment-transactions/{paymentTransactionId}/notify-client")
     WsResponse<?> notifyClient(@PathVariable UUID paymentTransactionId);

@@ -3,12 +3,15 @@ package com.sahelys.payBridge.services;
 import com.sahelys.payBridge.domain.dto.ClientPaymentRequestCallback;
 import com.sahelys.payBridge.domain.entities.ClientPaymentRequest;
 import com.sahelys.payBridge.domain.entities.PaymentTransaction;
+import com.sahelys.payBridge.domain.events.PaymentTransactionTerminatedEvent;
 import com.sahelys.payBridge.globals.exceptions.CustomException;
 import com.sahelys.payBridge.globals.exceptions.EExceptionCode;
 import com.sahelys.payBridge.repository.ClientPaymentRequestRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.event.TransactionalEventListener;
 import org.springframework.web.client.RestClient;
 
 import java.time.Instant;
@@ -59,10 +62,23 @@ public class PaymentCallbackDeliveryService {
     }
 
     /**
-     * The explicit, payer-triggered action (e.g. a "Return to client app" button) -- unlike
-     * "deliverResponseToClientApp" method, this is never called automatically by outcome application, since the
-     * payer opening the paymentUrl isn't necessarily the same session that originated the
-     * request on the client app.
+     * Automatic notification: fires once the transaction that saved the terminal status has
+     * committed, so the client is never told about a status that could still roll back.
+     * Never throws -- the payment is already committed and the caller (provider submission
+     * or provider callback) must not see an error for a client-side notification problem.
+     */
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void onPaymentTransactionTerminated(PaymentTransactionTerminatedEvent event) {
+        try {
+            notifyClientApp(event.transaction());
+        } catch (Exception ex) {
+            log.error("Automatic client notification failed for {} -- payment state is unaffected", event.transaction().getId(), ex);
+        }
+    }
+
+    /**
+     * Shared by the automatic notification above and the explicit notify-client endpoint
+     * (which stays available to re-send manually). Only valid once the transaction is terminal.
      */
     public ClientPaymentRequestCallback notifyClientApp(PaymentTransaction transaction) {
         if (!transaction.getStatus().isTerminal())
