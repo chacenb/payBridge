@@ -11,3 +11,4 @@ payBridge.rar
 .env.*
 !.env.example
 *.log
+VERSION

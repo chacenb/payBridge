@@ -1,35 +1,23 @@
-// Release pipeline for preprod: clones backend + frontend, builds both images
-// from the single VERSION file next to this Jenkinsfile, pushes <VERSION> and
-// latest for each, then SSHes to the preprod host and runs deploy.sh.
-//
-// Job setup: "Pipeline script from SCM" (or paste inline) -- either way both
-// repos are cloned explicitly below, so no implicit checkout is needed.
-//
-// Replace every REPLACE_ME_* value and the three credential IDs before the
-// first run.
 pipeline {
   agent any
   options { disableConcurrentBuilds(); timestamps() }
 
-  parameters {
-    string(name: 'BACKEND_BRANCH',  defaultValue: 'develop')
-    string(name: 'FRONTEND_BRANCH', defaultValue: 'develop')
-  }
-
   environment {
-    BACKEND_REPO  = 'https://luga01.dyndns.org/git/r-d/paybridge/paybridge-back.git'
-    FRONTEND_REPO = 'https://luga01.dyndns.org/git/r-d/paybridge/paybridge-front.git'
-
-    GIT_CRED      = 'gitlab'
-    DOCKER_CRED   = 'dockerhub'
-    SSH_CRED      = 'preprod-ssh'
+    GITLAB_BACKEND_REPO     = 'https://luga01.dyndns.org/git/r-d/paybridge/paybridge-back.git'
+    GITLAB_FRONTEND_REPO    = 'https://luga01.dyndns.org/git/r-d/paybridge/paybridge-front.git'
+    GITLAB_REPO_BRANCH      = 'develop'
+    
+    JENKINS_TO_GITLAB_CREDENTIALS   = 'uname_pass_credential_conTo_SA_gitLab'
+    JENKINS_TO_DOCKER_CREDENTIALS   = 'uname_pass_credential_conTo_SA_docker'
+    JENKINS_TO_SA_AWS_QRPAY_SITIMOBILE_CREDENTIALS      = 'uname_Key_credential_conTo_AWS_qrpay_sitimobile_com'
 
     BACK_IMAGE    = 'sahelys/paybridge-standalone'
     FRONT_IMAGE   = 'sahelys/paybridge-front'
+
     DEPLOY_DIR    = 'backend/_deployment_env/preprod'
 
-    REMOTE        = 'REPLACE_ME_user@172.31.63.50'
-    REMOTE_DIR    = 'REPLACE_ME_/path/on/server'
+    PREPROD_HOST        = 'rocky@qrpay.sitimobile.com'
+    PREPROD_HOST_DIR    = '/home/rocky/payBridgeStandalone/'
   }
 
   stages {
@@ -37,7 +25,7 @@ pipeline {
     stage('Checkout backend') {
       steps {
         dir('backend') {
-          git url: env.BACKEND_REPO, branch: params.BACKEND_BRANCH, credentialsId: env.GIT_CRED
+          git url: env.GITLAB_BACKEND_REPO, branch: env.GITLAB_REPO_BRANCH, credentialsId: env.JENKINS_TO_GITLAB_CREDENTIALS
         }
       }
     }
@@ -45,7 +33,7 @@ pipeline {
     stage('Checkout frontend') {
       steps {
         dir('frontend') {
-          git url: env.FRONTEND_REPO, branch: params.FRONTEND_BRANCH, credentialsId: env.GIT_CRED
+          git url: env.GITLAB_FRONTEND_REPO, branch: env.GITLAB_REPO_BRANCH, credentialsId: env.JENKINS_TO_GITLAB_CREDENTIALS
         }
       }
     }
@@ -53,7 +41,7 @@ pipeline {
     stage('Read version') {
       steps {
         script {
-          env.VERSION = readFile("${env.DEPLOY_DIR}/VERSION").trim()
+          env.VERSION = readFile('backend/VERSION').trim()
           echo "Releasing ${env.VERSION}"
         }
       }
@@ -69,9 +57,10 @@ pipeline {
 
     // Both images are built before either is pushed, so a failed build can't
     // leave a half-published release in the registry.
+
     stage('Push images') {
       steps {
-        withCredentials([usernamePassword(credentialsId: env.DOCKER_CRED, usernameVariable: 'U', passwordVariable: 'P')]) {
+        withCredentials([usernamePassword(credentialsId: env.JENKINS_TO_DOCKER_CREDENTIALS, usernameVariable: 'U', passwordVariable: 'P')]) {
           sh '''
             echo "$P" | docker login -u "$U" --password-stdin
             docker push $BACK_IMAGE:$VERSION  && docker push $BACK_IMAGE:latest
@@ -81,18 +70,17 @@ pipeline {
       }
     }
 
-    // Only what the app needs is shipped: compose.preprod.yaml and VERSION.
+    // Only what the app needs is shipped: compose.preprod.yaml and VERSION (from the backend repo root).
     // deploy.sh / logs.sh / .env.preprod already live on the server (installed
     // once by hand, never overwritten by CI); the pipeline just runs deploy.sh,
     // which pulls the pinned images, restarts the stack and fails (non-zero) if
     // a health check does not pass.
     stage('Deploy to preprod') {
       steps {
-        sshagent([env.SSH_CRED]) {
+        sshagent([env.JENKINS_TO_SA_AWS_QRPAY_SITIMOBILE_CREDENTIALS]) {
           sh '''
-            scp -o StrictHostKeyChecking=accept-new \
-              $DEPLOY_DIR/compose.preprod.yaml $DEPLOY_DIR/VERSION $REMOTE:$REMOTE_DIR/
-            ssh -o StrictHostKeyChecking=accept-new $REMOTE "cd $REMOTE_DIR && ./deploy.sh"
+            scp -o StrictHostKeyChecking=accept-new $DEPLOY_DIR/compose.preprod.yaml backend/VERSION $PREPROD_HOST:$PREPROD_HOST_DIR/
+            ssh -o StrictHostKeyChecking=accept-new $PREPROD_HOST "cd $PREPROD_HOST_DIR && sudo ./deploy.sh"
           '''
         }
       }

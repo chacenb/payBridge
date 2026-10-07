@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Deploy/redeploy PayBridge on this host from the pre-built images
-# <repository from .env.preprod>:<version from the VERSION file next to this script> --
+# <repository from .env.preprod>:<version from the VERSION file next to this script (shipped by CI from the backend repo root)> --
 # backend and frontend share that one version.
 # Run this script from anywhere -- it always resolves compose.preprod.yaml, .env.preprod and VERSION next to itself, not the working directory.
 # Never builds anything; only pulls and (re)starts.
@@ -21,7 +21,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 COMPOSE_FILE="$SCRIPT_DIR/compose.preprod.yaml"
 ENV_FILE="$SCRIPT_DIR/.env.preprod"
 
-# The single source of truth 'VERSION' file shipped next to this script
+# The single source of truth 'VERSION' file (lives at the backend repo root, shipped next to this script by CI)
 # For a manual rollback, pass a version as the first argument to this script, e.g. `./deploy.sh 1.2.3`.
 PAYBRIDGE_ROLLBACK_VERSION="${1:-}"
 PAYBRIDGE_VERSION="${PAYBRIDGE_ROLLBACK_VERSION:-$(tr -d '[:space:]' < "$SCRIPT_DIR/VERSION")}"

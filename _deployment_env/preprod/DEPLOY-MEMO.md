@@ -1,7 +1,7 @@
 # PayBridge -- Preprod Deployment Memo
 
 How a release reaches preprod. The version is specified **once**, in the
-`VERSION` file next to this memo; backend and frontend images share it.
+`VERSION` file at the backend repo root (shipped next to `compose.preprod.yaml` on the server); backend and frontend images share it.
 
 ```
 VERSION  -->  Jenkinsfile  -->  build backend + frontend images
@@ -11,7 +11,7 @@ VERSION  -->  Jenkinsfile  -->  build backend + frontend images
 
 ## Release (normal flow)
 
-1. Bump `_deployment_env/preprod/VERSION` (plain patch bump, e.g. `1.0.16` -> `1.0.17`).
+1. Bump `VERSION` (backend repo root) (plain patch bump, e.g. `1.0.16` -> `1.0.17`).
 2. Commit and push it to the backend repo (together with any code changes).
 3. Run the Jenkins job (`BACKEND_BRANCH` / `FRONTEND_BRANCH` default to `develop`).
 
