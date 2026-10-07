@@ -1,67 +1,42 @@
 #!/usr/bin/env bash
-# Follow PayBridge's (backend, frontend, and Postgres) container logs live
-# on this host. Run from anywhere -- resolves compose.preprod.yaml and
-# .env.preprod next to itself, same as deploy.sh.
+# Manual debugging tool -- NOT part of the Jenkins pipeline.
+# Follows ONE container's logs, by container name: independent of compose,
+# .env.preprod and VERSION, it only needs Docker and the container running.
 #
 # Usage:
-#   ./logs.sh                  # asks interactively what to follow
-#   ./logs.sh paybridge        # follow just the backend, no prompt
-#   ./logs.sh paybridge-front  # follow just the frontend, no prompt
-#   ./logs.sh postgres         # follow just the database, no prompt
-#   ./logs.sh backend          # alias for paybridge
-#   ./logs.sh frontend         # alias for paybridge-front
-#   ./logs.sh db               # alias for postgres
+#   ./logs.sh             # asks which container
+#   ./logs.sh backend | frontend | db
 
 set -euo pipefail
 
-# Resolve paths relative to THIS script's own location, not the caller's
-# current directory -- same reasoning as deploy.sh.
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-COMPOSE_FILE="$SCRIPT_DIR/compose.preprod.yaml"
-ENV_FILE="$SCRIPT_DIR/.env.preprod"
+# Fixed container_name values from compose.preprod.yaml.
+BACKEND=paybridge-standalone-back
+FRONTEND=paybridge-standalone-front
+DB=paybridge-standalone-postgres
 
-if [ ! -f "$ENV_FILE" ]; then
-  echo "Error: $ENV_FILE not found." >&2
-  echo "Copy .env.preprod.example to .env.preprod in this folder and fill in every REPLACE_ME_* value first." >&2
-  exit 1
-fi
+TARGET="${1:-}"
 
-compose() {
-  docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" "$@"
-}
-
-# Only prompt when no argument was given -- passing one explicitly (e.g. from
-# another script, or a habit already muscle-memorized) always skips the menu.
-SERVICE="${1:-}"
-
-if [ -z "$SERVICE" ]; then
+if [ -z "$TARGET" ]; then
   echo "What do you want to log?"
-  echo "  1) backend (paybridge)"
-  echo "  2) frontend (paybridge-front)"
-  echo "  3) DB (postgres)"
-  read -rp "Choice [1/2/3, Enter = all]: " CHOICE
+  echo "  1) backend  ($BACKEND)"
+  echo "  2) frontend ($FRONTEND)"
+  echo "  3) db       ($DB)"
+  read -rp "Choice [1/2/3]: " CHOICE
   case "$CHOICE" in
-    1) SERVICE="paybridge" ;;
-    2) SERVICE="paybridge-front" ;;
-    3) SERVICE="postgres" ;;
-    "") SERVICE="" ;;          # Enter/blank -- all, no filter
-    *) echo "Unrecognized choice '$CHOICE', following all." >&2; SERVICE="" ;;
-  esac
-else
-  # Accept friendly aliases alongside the real compose service names.
-  case "$SERVICE" in
-    backend) SERVICE="paybridge" ;;
-    frontend|front) SERVICE="paybridge-front" ;;
-    db) SERVICE="postgres" ;;
+    1) TARGET=backend ;;
+    2) TARGET=frontend ;;
+    3) TARGET=db ;;
+    *) echo "Unrecognized choice '$CHOICE'." >&2; exit 1 ;;
   esac
 fi
 
-# -f/--follow: keep streaming new lines as they're written, instead of
-# printing what exists so far and exiting (like `tail -f`).
-# --tail=200: start with the last 200 lines of history so you have context,
-# then keep following from there -- not the entire log since the container
-# started.
-# $SERVICE left unquoted on purpose: when empty (both/default), it must
-# disappear entirely rather than pass an empty-string argument to docker
-# compose logs, which would error.
-compose logs -f --tail=200 $SERVICE
+case "$TARGET" in
+  backend)  CONTAINER="$BACKEND" ;;
+  frontend) CONTAINER="$FRONTEND" ;;
+  db)       CONTAINER="$DB" ;;
+  *) echo "Unknown target '$TARGET' -- use backend | frontend | db." >&2; exit 1 ;;
+esac
+
+# -f: keep streaming new lines (like `tail -f`); --tail=200: start with the last
+# 200 lines of history for context instead of the whole log.
+exec docker logs -f --tail=200 "$CONTAINER"
