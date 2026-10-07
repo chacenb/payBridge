@@ -49,35 +49,39 @@ docker push sahelys/paybridge-standalone:latest
 
 ---
 
-1. Build and push both tags -- see the versioning policy above for the exact
-   commands.
+The release number lives in one place: the `VERSION` file at the root of this
+repository. Backend and frontend images share it, and `deploy.sh` on the host
+reads the copy shipped next to it. Normally Jenkins does all of the below -- see
+`_deployment_env/preprod/DEPLOY-MEMO.md`. The manual flow is the fallback.
 
-2. On the preprod host, copy only two files there: `compose.preprod.yaml` and a
-   `.env.preprod` you write from `.env.preprod.example`, filling in every
+1. Bump `VERSION`, then build and push both tags of **both** images (backend
+   here, frontend from its own repo) -- see the versioning policy above for the
+   exact commands.
+
+2. On the preprod host, the deploy folder holds: `compose.preprod.yaml` and
+   `VERSION` (copy these each release), `deploy.sh` (copy once, `chmod +x`), and
+   a `.env.preprod` you write from `.env.preprod.example`, filling in every
    `REPLACE_ME_*` value (a fresh `POSTGRES_PASSWORD`, preprod's own Moov
-   credentials, `PAYBRIDGE_IMAGE=sahelys/paybridge-standalone:<next-version>`
-   (pin to the specific version, not `latest`, so this deployment stays
-   reproducible), and a
-   `MOMO_RESULT_BASE_URL` pointing at this host's own public address, base
-   only -- the callback path is appended automatically from
-   `PAYBRIDGE_CALLBACK_PATH`). Never commit
-   `.env.preprod`.
+   credentials, and a `MOMO_RESULT_BASE_URL` pointing at this host's own public
+   address, base only -- the callback path is appended automatically from
+   `PAYBRIDGE_CALLBACK_PATH`). `PAYBRIDGE_IMAGE` and `PAYBRIDGE_FRONT_IMAGE` are
+   repository names only, **no `:tag`** -- the tag comes from `VERSION`. Never
+   commit `.env.preprod`.
 
-3. Pull and start, always passing `--env-file` explicitly -- `-f` alone does not
-   select a matching env file, Compose otherwise only ever looks for a file
-   literally named `.env`:
+3. Deploy from that folder. `deploy.sh` pins the images to `VERSION`, stops the
+   old stack, pulls, starts, and waits for the health checks:
 
    ```bash
-   docker login
-   docker compose --env-file .env.preprod -f compose.preprod.yaml pull
-   docker compose --env-file .env.preprod -f compose.preprod.yaml up -d
+   docker login   # once, only if the registry is private
+   ./deploy.sh
    ```
 
-4. Verify the same way as local dev: `curl http://<host>:9000/actuator/health`.
+4. Verify: `curl http://<host>:9000/actuator/health` (backend) and
+   `curl -I http://<host>:9001/paybridge/` (frontend).
 
-To ship a new version later: repeat step 1 (both tags, both pushed), update
-`PAYBRIDGE_IMAGE` in `.env.preprod` to the new version, then repeat step 3's
-`pull`/`up -d`.
+To ship a new version later: repeat step 1, copy the new `compose.preprod.yaml`
+and `VERSION` to the host, then run `./deploy.sh` again. To roll back, run
+`./deploy.sh <older-version>`.
 
 ## Configuration
 
