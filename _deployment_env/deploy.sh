@@ -16,7 +16,10 @@
 set -euo pipefail
 
 # Resolve paths relative to THIS script's own location, not the caller's current directory --
-# so the whole deployment-env/preprod/ folder can be copied anywhere and still work with a plain `./deploy.sh`.
+# so the deploy folder can live anywhere and still work with a plain `./deploy.sh`.
+# NOTE: this expects the FLAT layout used on the host -- deploy.sh, compose.preprod.yaml,
+# .env.preprod and VERSION all in one folder. In the repo they are spread out
+# (_deployment_env/, _deployment_env/preprod/, repo root), so run it on the host, not from a checkout.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 COMPOSE_FILE="$SCRIPT_DIR/compose.preprod.yaml"
 ENV_FILE="$SCRIPT_DIR/.env.preprod"

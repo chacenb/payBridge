@@ -32,6 +32,20 @@ The job does the following :
 > IMPORTANT : The secret file `.env.preprod` is never commited nor shipped. 
 > If any modification is done, shipt it manually to the server.
 
+## Repo layout vs server layout
+
+The repo is organised by role, the server folder is flat:
+
+| Repo | Server (`PREPROD_HOST_DIR`) | Who puts it there |
+|---|---|---|
+| `VERSION` (repo root) | `VERSION` | Jenkins, every release |
+| `_deployment_env/preprod/compose.preprod.yaml` | `compose.preprod.yaml` | Jenkins, every release |
+| `_deployment_env/deploy.sh` | `deploy.sh` | by hand, once |
+| `_deployment_env/logs.sh` | `logs.sh` | by hand, once (optional) |
+| `_deployment_env/preprod/.env.preprod.example` | `.env.preprod` | by hand (secret, never committed) |
+
+`deploy.sh` resolves everything next to itself, so it only works in the flat server layout.
+
 ## One-time setup
 
 - **Jenkins**: agent with Docker CLI; plugins Git, Credentials Binding, SSH
