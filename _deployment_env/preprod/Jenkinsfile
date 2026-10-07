@@ -47,6 +47,19 @@ pipeline {
       }
     }
 
+    // Free the disk on the Jenkins agent: drop every image of the PREVIOUS
+    // builds (all tags of both repositories) plus dangling layers before
+    // building the next ones. Releases live in the registry, so nothing is lost.
+    // Best-effort (`|| true`): a missing image or one still in use must not fail the build.
+    stage('Clean previous images') {
+      steps {
+        sh '''
+          docker images --format '{{.Repository}}:{{.Tag}}' | grep -E "^($BACK_IMAGE|$FRONT_IMAGE):" | xargs -r docker rmi -f || true
+          docker image prune -f || true
+        '''
+      }
+    }
+
     stage('Build backend image') {
       steps { sh 'docker build -t $BACK_IMAGE:$VERSION -t $BACK_IMAGE:latest backend' }
     }
