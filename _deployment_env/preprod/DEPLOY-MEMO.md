@@ -1,128 +1,92 @@
 # PayBridge -- Preprod Deployment Memo
 
-Copy-pasteable checklist for shipping a new build to preprod. It's the
-step-by-step distillation of the policy explained in the root `README.md`
-("Preprod deploy" section) plus what's encoded in `Dockerfile` and
-`deploy.sh` -- read those if you need the *why*, this file is just the *what,
-in order*.
+How a release reaches preprod. The version is specified **once**, in the
+`VERSION` file next to this memo; backend and frontend images share it.
 
-Two machines are involved: **local** (where you build/push the image) and
-**preprod host** (where you run `deploy.sh`). Each step says which one it's
-for.
+```
+VERSION  -->  Jenkinsfile  -->  build backend + frontend images
+                            -->  push <VERSION> and latest (both images)
+                            -->  ssh preprod host -->  ./deploy.sh
+```
 
----
+## Release (normal flow)
 
-## 0. Before you start -- local
+1. Bump `_deployment_env/preprod/VERSION` (plain patch bump, e.g. `1.0.16` -> `1.0.17`).
+2. Commit and push it to the backend repo (together with any code changes).
+3. Run the Jenkins job (`BACKEND_BRANCH` / `FRONTEND_BRANCH` default to `develop`).
 
-- [ ] Confirm your code changes are committed (and pushed, if this build is
-      meant to be reproducible from git history later).
-- [ ] Confirm the current live version, so you know what "next" means:
-      ```bash
-      grep PAYBRIDGE_IMAGE deployment-env/preprod/.env.preprod
-      ```
-      (run on the preprod host, or check the last tag you pushed to
-      `sahelys/paybridge-standalone` on Docker Hub)
-- [ ] Decide the next version number -- a plain patch bump from the current
-      one (e.g. `1.0.4` -> `1.0.5`). Call this `<NEXT>` for the rest of this
-      checklist.
+The job does the following : 
+1. clones both repos, 
+2. Builds both images tagged `<VERSION>` + `latest`,
+3. Pushes all four tags, 
+4. Copies only `compose.preprod.yaml` and `VERSION` to the destination server
+(`deploy.sh` and `logs.sh` already live there -- see One-time setup), 
+5. Then simply runs the server's own `./deploy.sh`. 
+   1. The `deploy.sh` script stops the old stack, 
+   2. removes the replaced images, 
+   3. pulls the pinned images, 
+   4. starts the stack 
+   5. And polls backend (`/actuator/health`) and frontend
+(`/paybridge/`)
 
-## 1. Build the image -- local, from repo root
+> IMPORTANT : The secret file `.env.preprod` is never commited nor shipped. 
+> If any modification is done, shipt it manually to the server.
+
+## One-time setup
+
+- **Jenkins**: agent with Docker CLI; plugins Git, Credentials Binding, SSH
+  Agent; credentials for GitLab (read), Docker Hub (push) and an SSH key for
+  the preprod user; fill the `REPLACE_ME_*` values and credential IDs at the
+  top of the `Jenkinsfile`.
+- **Server**: Docker + compose plugin; `docker login` once if the registry
+  is private; in its `.env.preprod`, `PAYBRIDGE_IMAGE` and
+  `PAYBRIDGE_FRONT_IMAGE` are **repository only, no `:tag`** (the tag comes
+  from `VERSION`).
+- **Server scripts**: copy `deploy.sh` (and `logs.sh`, optional) to the deploy
+  folder **by hand, once**, then `chmod +x deploy.sh logs.sh`. The pipeline
+  never copies or overwrites them, so a stray local edit can't reach the
+  server. The flip side: if you change `deploy.sh` in the repo, re-copy it
+  manually.
+
+## Verify
 
 ```bash
-docker build -t sahelys/paybridge-standalone:<NEXT> -t sahelys/paybridge-standalone:latest .
+curl http://<preprod-host>:9000/actuator/health      # {"status":"UP"}
+curl -I http://<preprod-host>:9001/paybridge/        # 200
+docker ps                                             # paybridge-standalone-back/-front/-postgres Up
 ```
 
-One build, two `-t` flags -- both tags land on the exact same image, so they
-can never drift apart. Never build/push them as two separate builds.
+## Logs
 
-## 2. Smoke-test the built image before pushing -- local
-
-Don't push an image that's never actually been run. Start it against a real
-Postgres and confirm it comes up clean:
+`logs.sh` is a manual debugging tool, **not part of the pipeline** -- Jenkins
+never ships or runs it. Copy it to the server by hand if you want it there.
+It is fully independent: it follows the containers by name
+(`paybridge-standalone-back`, `-front`, `-postgres`), so it needs neither
+compose, `.env.preprod` nor `VERSION`.
 
 ```bash
-docker run -d --name paybridge-smoketest --network <a-network-with-postgres-reachable> -p 9009:9000 \
-  -e SPRING_DATASOURCE_URL="jdbc:postgresql://<postgres-host>:5432/paybridge" \
-  -e SPRING_DATASOURCE_USERNAME=paybridge \
-  -e SPRING_DATASOURCE_PASSWORD=<that-postgres's-password> \
-  -e PAYBRIDGE_PUBLIC_BASE_URL="http://localhost:9009" \
-  sahelys/paybridge-standalone:<NEXT>
-
-curl http://localhost:9009/actuator/health        # expect {"status":"UP"}
-docker logs paybridge-smoketest --tail 50         # confirm Flyway migrated cleanly, no stack traces
-
-docker rm -f paybridge-smoketest                  # clean up either way
+./logs.sh            # asks what to follow
+./logs.sh backend    # or: frontend | db  (one container at a time)
 ```
 
-## 3. Push both tags -- local
+## Manual rollback on the host :: !! NO JENKINS !!
+
+`deploy.sh` reads the version from the `VERSION` file ; 
+
+Rolling back manually is basically one-liner: 
+Just specify the version we want to rollback to like shown below
 
 ```bash
-docker login
-docker push sahelys/paybridge-standalone:<NEXT>
-docker push sahelys/paybridge-standalone:latest
+./deploy.sh 1.0.15
 ```
+The previous images are still in the registry, so it's just a redeploy, not a rebuild.
 
-Never push only one -- anything pinned to `<NEXT>` and anything tracking
-`latest` must both resolve to this same build.
 
-## 4. Bump the version in `.env.preprod` -- local (the copy you're about to ship)
-
-Edit `deployment-env/preprod/.env.preprod`:
-
-```
-PAYBRIDGE_IMAGE=sahelys/paybridge-standalone:<NEXT>
-```
-
-Pin to the exact version, never `latest` -- that's what keeps this specific
-deployment reproducible and reversible. Leave every other value as-is unless
-this release specifically requires a config change. Never commit this file.
-
-## 5. Ship the two files that actually drive the deploy -- local -> preprod host
-
-Only these two need to reach the preprod host, replacing what's already
-there:
-
-- `deployment-env/preprod/compose.preprod.yaml`
-- `deployment-env/preprod/.env.preprod` (with the bumped `PAYBRIDGE_IMAGE`
-  from step 4)
-
-The host never needs the repository source, `pom.xml`, or `Dockerfile` --
-it only ever pulls the pre-built image.
-
-## 6. Run the deploy -- preprod host
-
-From `deployment-env/preprod/` on that host:
+## Reminder of manual actions if Jenkins is down
+Manual (build/push) from each repo root:
 
 ```bash
-docker login       # only if not already authenticated on this host
-./deploy.sh
+docker build -t sahelys/paybridge-standalone:<V> -t sahelys/paybridge-standalone:latest .   # backend repo
+docker build -t sahelys/paybridge-front:<V>      -t sahelys/paybridge-front:latest .        # frontend repo
+docker push ...   # all four tags -- never push only one
 ```
-
-One script does the whole redeploy: stops + removes the currently running
-container(s), deletes the image(s) they were using, pulls the new tag,
-starts the stack, then polls `/actuator/health` until it's `UP` -- or prints
-the app's last 50 log lines and exits non-zero if it never comes up.
-
-## 7. Verify -- preprod host
-
-```bash
-curl http://<preprod-host>:9000/actuator/health   # {"status":"UP"}
-docker ps                                          # paybridge-standalone and paybridge-postgres both Up
-```
-
-Optional, if this release included a migration:
-
-```bash
-docker exec paybridge-postgres psql -U paybridge -d paybridge \
-  -c "SELECT version, description, success FROM flyway_schema_history ORDER BY installed_rank;"
-```
-
----
-
-## Rollback
-
-If step 7 fails, or the new version misbehaves once live: edit
-`.env.preprod` on the preprod host back to the previous known-good tag
-(`PAYBRIDGE_IMAGE=sahelys/paybridge-standalone:<PREVIOUS>`) and rerun
-`./deploy.sh`. The previous image is still on Docker Hub, so this is a
-straight redeploy, not a rebuild.

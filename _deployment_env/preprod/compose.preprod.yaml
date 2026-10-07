@@ -1,6 +1,6 @@
 services:
   paybridge:
-    image: ${PAYBRIDGE_IMAGE:?Set PAYBRIDGE_IMAGE in .env, e.g. registry.example.com/sahelys/paybridge:1.2.3}
+    image: ${PAYBRIDGE_IMAGE:?required variable PAYBRIDGE_IMAGE is missing a value}:${PAYBRIDGE_VERSION:?required variable PAYBRIDGE_VERSION is read from the VERSION file by deploy.sh/logs.sh}
     container_name: paybridge-standalone-back
     ports:
       - "${PAYBRIDGE_PORT:-9000}:${SERVER_PORT:-9000}"
@@ -28,7 +28,7 @@ services:
     restart: unless-stopped
 
   paybridge-front:
-    image: ${PAYBRIDGE_FRONT_IMAGE:?Set PAYBRIDGE_FRONT_IMAGE in .env.preprod, e.g. registry.example.com/sahelys/paybridge-front:1.0.0}
+    image: ${PAYBRIDGE_FRONT_IMAGE:?required variable PAYBRIDGE_FRONT_IMAGE is missing a value}:${PAYBRIDGE_VERSION:?required variable PAYBRIDGE_VERSION is read from the VERSION file by deploy.sh/logs.sh}
     container_name: paybridge-standalone-front
     ports:
       - "${PAYBRIDGE_FRONT_PORT:-9001}:80"

@@ -1,0 +1,101 @@
+// Release pipeline for preprod: clones backend + frontend, builds both images
+// from the single VERSION file next to this Jenkinsfile, pushes <VERSION> and
+// latest for each, then SSHes to the preprod host and runs deploy.sh.
+//
+// Job setup: "Pipeline script from SCM" (or paste inline) -- either way both
+// repos are cloned explicitly below, so no implicit checkout is needed.
+//
+// Replace every REPLACE_ME_* value and the three credential IDs before the
+// first run.
+pipeline {
+  agent any
+  options { disableConcurrentBuilds(); timestamps() }
+
+  parameters {
+    string(name: 'BACKEND_BRANCH',  defaultValue: 'develop')
+    string(name: 'FRONTEND_BRANCH', defaultValue: 'develop')
+  }
+
+  environment {
+    BACKEND_REPO  = 'https://luga01.dyndns.org/git/r-d/paybridge/paybridge-back.git'
+    FRONTEND_REPO = 'https://luga01.dyndns.org/git/r-d/paybridge/paybridge-front.git'
+
+    GIT_CRED      = 'gitlab'
+    DOCKER_CRED   = 'dockerhub'
+    SSH_CRED      = 'preprod-ssh'
+
+    BACK_IMAGE    = 'sahelys/paybridge-standalone'
+    FRONT_IMAGE   = 'sahelys/paybridge-front'
+    DEPLOY_DIR    = 'backend/_deployment_env/preprod'
+
+    REMOTE        = 'REPLACE_ME_user@172.31.63.50'
+    REMOTE_DIR    = 'REPLACE_ME_/path/on/server'
+  }
+
+  stages {
+
+    stage('Checkout backend') {
+      steps {
+        dir('backend') {
+          git url: env.BACKEND_REPO, branch: params.BACKEND_BRANCH, credentialsId: env.GIT_CRED
+        }
+      }
+    }
+
+    stage('Checkout frontend') {
+      steps {
+        dir('frontend') {
+          git url: env.FRONTEND_REPO, branch: params.FRONTEND_BRANCH, credentialsId: env.GIT_CRED
+        }
+      }
+    }
+
+    stage('Read version') {
+      steps {
+        script {
+          env.VERSION = readFile("${env.DEPLOY_DIR}/VERSION").trim()
+          echo "Releasing ${env.VERSION}"
+        }
+      }
+    }
+
+    stage('Build backend image') {
+      steps { sh 'docker build -t $BACK_IMAGE:$VERSION -t $BACK_IMAGE:latest backend' }
+    }
+
+    stage('Build frontend image') {
+      steps { sh 'docker build -t $FRONT_IMAGE:$VERSION -t $FRONT_IMAGE:latest frontend' }
+    }
+
+    // Both images are built before either is pushed, so a failed build can't
+    // leave a half-published release in the registry.
+    stage('Push images') {
+      steps {
+        withCredentials([usernamePassword(credentialsId: env.DOCKER_CRED, usernameVariable: 'U', passwordVariable: 'P')]) {
+          sh '''
+            echo "$P" | docker login -u "$U" --password-stdin
+            docker push $BACK_IMAGE:$VERSION  && docker push $BACK_IMAGE:latest
+            docker push $FRONT_IMAGE:$VERSION && docker push $FRONT_IMAGE:latest
+          '''
+        }
+      }
+    }
+
+    // Only what the app needs is shipped: compose.preprod.yaml and VERSION.
+    // deploy.sh / logs.sh / .env.preprod already live on the server (installed
+    // once by hand, never overwritten by CI); the pipeline just runs deploy.sh,
+    // which pulls the pinned images, restarts the stack and fails (non-zero) if
+    // a health check does not pass.
+    stage('Deploy to preprod') {
+      steps {
+        sshagent([env.SSH_CRED]) {
+          sh '''
+            scp -o StrictHostKeyChecking=accept-new \
+              $DEPLOY_DIR/compose.preprod.yaml $DEPLOY_DIR/VERSION $REMOTE:$REMOTE_DIR/
+            ssh -o StrictHostKeyChecking=accept-new $REMOTE "cd $REMOTE_DIR && ./deploy.sh"
+          '''
+        }
+      }
+    }
+  }
+}

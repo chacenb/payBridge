@@ -1,45 +1,46 @@
 #!/usr/bin/env bash
-# Deploy/redeploy PayBridge on this host from the pre-built image named in
-# .env.preprod. Run this script from anywhere -- it always resolves
-# compose.preprod.yaml and .env.preprod next to itself, not the working
-# directory. Never builds anything; only pulls and (re)starts.
-#
-# Prerequisite (only if the registry is private): `docker login` on this host
-# with an account that can pull the image. Not done automatically here so no
-# credential ever needs to live in this script.
+# Deploy/redeploy PayBridge on this host from the pre-built images
+# <repository from .env.preprod>:<version from the VERSION file next to this script> --
+# backend and frontend share that one version.
+# Run this script from anywhere -- it always resolves compose.preprod.yaml, .env.preprod and VERSION next to itself, not the working directory.
+# Never builds anything; only pulls and (re)starts.
+# Manual rollback: ./deploy.sh x.y.z
 
-# -e: exit immediately if any command fails (a failed pull must never fall
-#     through to "up -d" against a stack that never actually got the new image).
-# -u: treat use of an unset variable as an error, instead of silently
-#     expanding to an empty string.
-# -o pipefail: a pipeline (e.g. `grep | cut`) fails if ANY stage fails, not
-#     just the last one.
+# Prerequisite (only if the registry is private):
+# `docker login` on this host with an account that can pull the image.
+# Not done automatically here so no credential ever needs to live in this script.
+
+# -e: exit immediately if any command fails.
+# -u: treat use of an unset variable as an error, instead of silently expanding to an empty string.
+# -o pipefail: a pipeline (e.g. `grep | cut`) fails if ANY stage fails, not just the last one.
 set -euo pipefail
 
-# Resolve paths relative to THIS script's own location, not the caller's
-# current directory -- so the whole deployment-env/preprod/ folder can be
-# copied anywhere and still work with a plain `./deploy.sh`.
+# Resolve paths relative to THIS script's own location, not the caller's current directory --
+# so the whole deployment-env/preprod/ folder can be copied anywhere and still work with a plain `./deploy.sh`.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 COMPOSE_FILE="$SCRIPT_DIR/compose.preprod.yaml"
 ENV_FILE="$SCRIPT_DIR/.env.preprod"
 
-# Refuse to run against a folder that only has the .example template --
-# that would mean pulling REPLACE_ME_registry/paybridge:REPLACE_ME_tag and
-# failing confusingly deep inside docker compose instead of here.
+# The single source of truth 'VERSION' file shipped next to this script
+# For a manual rollback, pass a version as the first argument to this script, e.g. `./deploy.sh 1.2.3`.
+PAYBRIDGE_ROLLBACK_VERSION="${1:-}"
+PAYBRIDGE_VERSION="${PAYBRIDGE_ROLLBACK_VERSION:-$(tr -d '[:space:]' < "$SCRIPT_DIR/VERSION")}"
+export PAYBRIDGE_VERSION
+echo "==> Deploying version ${PAYBRIDGE_VERSION}"
+
+# Check the presence of the .env file before doing anything else
 if [ ! -f "$ENV_FILE" ]; then
   echo "Error: $ENV_FILE not found." >&2
-  echo "Copy .env.preprod.example to .env.preprod in this folder and fill in every REPLACE_ME_* value first." >&2
   exit 1
 fi
 
-# Small wrapper so every docker compose call below always targets the right
-# compose file and env file without repeating both flags each time.
+# Small wrapper so every docker compose call below always targets the right compose file and env file without repeating both flags each time.
 compose() {
   docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" "$@"
 }
 
-# Snapshot the image(s) the current container(s) are running BEFORE touching
-# anything -- once they're stopped/removed there's no other way to know what
+# Snapshot the image(s) the current container(s) are running BEFORE touching anything --
+# once they're stopped/removed there's no other way to know what
 # to delete. Empty on a first-ever run (nothing deployed yet), which is fine.
 OLD_IMAGE_IDS="$(compose ps -q | xargs -r docker inspect -f '{{.Image}}' 2>/dev/null | sort -u)"
 
@@ -59,11 +60,7 @@ if [ -n "$OLD_IMAGE_IDS" ]; then
   echo "$OLD_IMAGE_IDS" | xargs -r docker rmi || true
 fi
 
-# Pull BEFORE up, on purpose: `up -d` alone only pulls an image if nothing
-# with that tag exists locally yet, so redeploying the same tag with new
-# content would silently reuse the stale local copy. Pulling explicitly here
-# also fails fast (bad tag, auth, network) before anything currently running
-# is touched.
+# Pulling images explicitly here
 echo "-------------------------------------------"
 echo "==> Pulling images"
 compose pull
@@ -73,11 +70,10 @@ echo "-------------------------------------------"
 echo "==> Starting stack"
 compose up -d
 
-# Don't just trust "container started" -- poll each service's own signal of
-# life so this script only reports success once the whole stack is actually
-# serving traffic, not just running.
+# Don't just trust "container started"
+# Poll each service's own signal of life so this script only reports success once the whole stack is actually serving traffic, not just running.
 echo "-------------------------------------------"
-echo "==> Waiting for the backend to report healthy"
+echo "==> Waiting for the backend to report healthy within ~1 minute"
 PORT="$(grep -E '^PAYBRIDGE_PORT=' "$ENV_FILE" | tail -1 | cut -d= -f2)"
 PORT="${PORT:-9000}"
 
@@ -92,25 +88,23 @@ for _ in $(seq 1 30); do
 done
 
 if [ "$BACKEND_UP" != true ]; then
-  # Never became healthy in time -- surface the app's own recent logs instead
-  # of leaving you to go dig them up by hand right after a failed deploy.
   echo "Backend did not report healthy in time -- recent logs:" >&2
-  compose logs --tail=50 paybridge >&2
+  compose logs --tail=100 paybridge >&2
   exit 1
 fi
 echo "==> Backend healthy on port ${PORT}"
 
 # The frontend has no /actuator-style health endpoint -- a plain 200 on its
-# own root is enough to confirm nginx came up and is serving the SPA (see
-# nginx.conf's crash-at-boot fix: this would have caught that failure too).
+# /paybridge/ context is enough to confirm nginx came up and is serving the
+# SPA. (Not "/": nginx redirects it to /paybridge/ with a 302, never a 200.)
 echo "-------------------------------------------"
-echo "==> Waiting for the frontend to respond"
+echo "==> Waiting for the frontend to respond within ~1 minute"
 FRONT_PORT="$(grep -E '^PAYBRIDGE_FRONT_PORT=' "$ENV_FILE" | tail -1 | cut -d= -f2)"
 FRONT_PORT="${FRONT_PORT:-9001}"
 
 FRONTEND_UP=false
 for _ in $(seq 1 30); do
-  if curl -s -o /dev/null -w '%{http_code}' "http://localhost:${FRONT_PORT}/" 2>/dev/null | grep -q '^200$'; then
+  if curl -s -o /dev/null -w '%{http_code}' "http://localhost:${FRONT_PORT}/paybridge/" 2>/dev/null | grep -q '^200$'; then
     FRONTEND_UP=true
     break
   fi
@@ -119,7 +113,7 @@ done
 
 if [ "$FRONTEND_UP" != true ]; then
   echo "Frontend did not respond in time -- recent logs:" >&2
-  compose logs --tail=50 paybridge-front >&2
+  compose logs --tail=100 paybridge-front >&2
   exit 1
 fi
 
