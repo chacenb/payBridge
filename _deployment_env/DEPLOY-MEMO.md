@@ -56,6 +56,11 @@ The repo is organised by role, the server folder is flat:
   is private; in its `.env.preprod`, `PAYBRIDGE_IMAGE` and
   `PAYBRIDGE_FRONT_IMAGE` are **repository only, no `:tag`** (the tag comes
   from `VERSION`).
+- **Server logs**: `/mnt/PAYBRIDGELUN` mounted; in `.env.preprod` set
+  `PAYBRIDGE_UID` / `PAYBRIDGE_GID` (compose refuses to start without them) and
+  optionally `PAYBRIDGE_LOGS_DIR`, `LOGFILE_NAME`, `DELETE_LOGS_OLDER_THAN_X_DAYS`,
+  `LOG_FILE_SIZE`, `APP_LOG_LEVEL` (see `.env.preprod.example`). Re-copy
+  `deploy.sh` after any change to it -- the pipeline never overwrites it.
 - **Server scripts**: copy `deploy.sh` (and `logs.sh`, optional) to the deploy
   folder **by hand, once**, then `chmod +x deploy.sh logs.sh`. The pipeline
   never copies or overwrites them, so a stray local edit can't reach the
@@ -71,6 +76,32 @@ docker ps                                             # paybridge-standalone-bac
 ```
 
 ## Logs
+
+### Application log files (host)
+
+The back writes a rolling log file in addition to the console output. It is
+**bind-mounted to the host** so it can be read from the server's own OS and
+survives every release (`compose down` never touches it):
+
+| What | Where / how |
+|---|---|
+| Host folder | `PAYBRIDGE_LOGS_DIR` in `.env.preprod` (default `/mnt/PAYBRIDGELUN/LOGS`) |
+| Live file | `<folder>/paybridge.log` (`LOGFILE_NAME`) |
+| Rotation | daily, at every app start, and past `LOG_FILE_SIZE`; archives are `paybridge.log_<yyyyMMdd>-<n>.log.gz` |
+| Cleanup | rotated archives older than `DELETE_LOGS_OLDER_THAN_X_DAYS` are deleted -- only those, nothing else in the folder |
+| Level | `APP_LOG_LEVEL` (restart to change; no rebuild) |
+| Owner | the container runs as `PAYBRIDGE_UID:PAYBRIDGE_GID` (`id -u` / `id -g` of the deploy user), so the files are not root-owned |
+
+`deploy.sh` creates the folder (and chowns it when run as root) **before**
+stopping the old stack. `/mnt/PAYBRIDGELUN` itself must already be mounted on
+the host. Docker's own copy of the console output is capped at 3 x 10 MB per
+container.
+
+```bash
+tail -f /mnt/PAYBRIDGELUN/LOGS/paybridge.log
+```
+
+### logs.sh
 
 `logs.sh` is a manual debugging tool, **not part of the pipeline** -- Jenkins
 never ships or runs it. Copy it to the server by hand if you want it there.
