@@ -46,25 +46,47 @@ The repo is organised by role, the server folder is flat:
 
 `deploy.sh` resolves everything next to itself, so it only works in the flat server layout.
 
-## One-time setup
+## Server prerequisites (one-time, by hand)
 
-- **Jenkins**: agent with Docker CLI; plugins Git, Credentials Binding, SSH
-  Agent; credentials for GitLab (read), Docker Hub (push) and an SSH key for
-  the preprod user; fill the `REPLACE_ME_*` values and credential IDs at the
-  top of the `Jenkinsfile`.
-- **Server**: Docker + compose plugin; `docker login` once if the registry
-  is private; in its `.env.preprod`, `PAYBRIDGE_IMAGE` and
-  `PAYBRIDGE_FRONT_IMAGE` are **repository only, no `:tag`** (the tag comes
-  from `VERSION`).
-- **Server logs**: `/mnt/PAYBRIDGELUN` mounted. The log settings in
-  `.env.preprod` (`PAYBRIDGE_LOGS_DIR`, `LOGFILE_NAME`, `DELETE_LOGS_OLDER_THAN_X_DAYS`,
-  `LOG_FILE_SIZE`, `APP_LOG_LEVEL`) are optional, they all have defaults. Re-copy
-  `deploy.sh` after any change to it -- the pipeline never overwrites it.
-- **Server scripts**: copy `deploy.sh` (and `logs.sh`, optional) to the deploy
-  folder **by hand, once**, then `chmod +x deploy.sh logs.sh`. The pipeline
-  never copies or overwrites them, so a stray local edit can't reach the
-  server. The flip side: if you change `deploy.sh` in the repo, re-copy it
-  manually.
+The scripts **assume all of this exists** and never create it. `deploy.sh` runs a
+read-only preflight and stops with the fix to apply if something is missing.
+
+| # | Element | Command | Check |
+|---|---|---|---|
+| 1 | Docker Engine + compose plugin | install per distro | `docker compose version` |
+| 2 | Docker starts at boot | `sudo systemctl enable --now docker` | `systemctl is-enabled docker` |
+| 3 | Deploy user (`rocky`) can run Docker | `sudo usermod -aG docker rocky`, log in again | `docker ps` as `rocky`, no sudo |
+| 4 | Jenkins SSH key authorized for the deploy user | add the public key to `~rocky/.ssh/authorized_keys` | SSH from the agent works |
+| 5 | App user (owns the logs) | `sudo useradd --system --no-create-home --shell /usr/sbin/nologin --uid 10001 paybridge` | `id paybridge` shows `10001` |
+| 6 | LUN mounted | add to `/etc/fstab`, `mount` | `findmnt /mnt/PAYBRIDGELUN` |
+| 7 | Logs folder | `sudo mkdir -p /mnt/PAYBRIDGELUN/LOGS && sudo chown paybridge:paybridge /mnt/PAYBRIDGELUN/LOGS && sudo chmod 755 /mnt/PAYBRIDGELUN/LOGS` | `ls -ld /mnt/PAYBRIDGELUN/LOGS` |
+| 8 | Deploy folder (`PREPROD_HOST_DIR`) | `mkdir -p /home/rocky/payBridgeStandalone` as `rocky` | `ls -ld` shows owner `rocky` |
+| 9 | `deploy.sh` (and optional `logs.sh`) | copy by hand, `chmod +x` -- the pipeline never overwrites them, so re-copy after any change | `ls -l` |
+| 10 | `.env.preprod` | copy from `.env.preprod.example`, fill it, `chmod 600` | `ls -l` |
+| 11 | Registry login (private registry only) | `docker login` as `rocky` | `docker pull <image>:latest` |
+| 12 | Network | open ports 9000 and 9001; Moov must reach `MOMO_RESULT_BASE_URL` | `curl` from outside |
+
+uid `10001` must match the non-root user of the image (Dockerfile).
+
+**Jenkins agent (once)**: Docker CLI; plugins Git, Credentials Binding, SSH Agent;
+credentials for GitLab (read), Docker Hub (push) and the SSH key of the deploy
+user; the server's host key pre-trusted, since the pipeline uses
+`StrictHostKeyChecking=yes`:
+
+```bash
+ssh-keyscan <preprod-host> >> ~jenkins/.ssh/known_hosts
+```
+
+**Done by Docker, not by the scripts** (declared in `compose.preprod.yaml` / the
+image): the `postgres-data` volume and the default network on the first `up`;
+Postgres creates its database and user from `POSTGRES_*` on the **first start
+only** (changing the password later in `.env.preprod` does not change the stored
+one); Flyway runs the migrations when the app starts; `restart: unless-stopped`
+brings the containers back after a reboot (needs #2).
+
+In `.env.preprod`, `PAYBRIDGE_IMAGE` and `PAYBRIDGE_FRONT_IMAGE` are **repository
+only, no `:tag`** (the tag comes from `VERSION`). Fill the `REPLACE_ME_*` values and
+credential IDs at the top of the `Jenkinsfile`.
 
 ## Verify
 
@@ -89,11 +111,11 @@ survives every release (`compose down` never touches it):
 | Rotation | daily, at every app start, and past `LOG_FILE_SIZE`; archives are `paybridge.log_<yyyyMMdd>-<n>.log.gz` |
 | Cleanup | rotated archives older than `DELETE_LOGS_OLDER_THAN_X_DAYS` are deleted -- only those, nothing else in the folder |
 | Level | `APP_LOG_LEVEL` (restart to change; no rebuild) |
-| Owner | uid `10001` (the image's non-root user); files are world-readable, deleting them by hand needs `sudo` |
+| Owner | `paybridge` (uid `10001`, the image's non-root user); files are world-readable, deleting them by hand needs `sudo` |
 
-`deploy.sh` creates the folder (and chowns it to `10001` when run as root) **before**
-stopping the old stack. `/mnt/PAYBRIDGELUN` itself must already be mounted on
-the host.
+The folder is a server prerequisite (#7): `deploy.sh` does not create it, it checks it
+(exists, owned by uid `10001`) before stopping anything. `/mnt/PAYBRIDGELUN` itself
+must be mounted (#6).
 
 ```bash
 tail -f /mnt/PAYBRIDGELUN/LOGS/paybridge.log
