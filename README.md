@@ -52,7 +52,7 @@ docker push sahelys/paybridge-standalone:latest
 The release number lives in one place: the `VERSION` file at the root of this
 repository. Backend and frontend images share it, and `deploy.sh` on the host
 reads the copy shipped next to it. Normally Jenkins does all of the below -- see
-`_deployment_env/DEPLOY-MEMO.md`. The manual flow is the fallback.
+`deployment-environment/DEPLOY-MEMO.md`. The manual flow is the fallback.
 
 1. Bump `VERSION`, then build and push both tags of **both** images (backend
    here, frontend from its own repo) -- see the versioning policy above for the

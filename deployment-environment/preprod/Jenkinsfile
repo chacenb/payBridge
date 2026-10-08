@@ -14,7 +14,7 @@ pipeline {
     BACK_IMAGE    = 'sahelys/paybridge-standalone'
     FRONT_IMAGE   = 'sahelys/paybridge-front'
 
-    DEPLOY_DIR    = 'backend/_deployment_env/preprod'
+    DEPLOY_DIR    = 'backend/deployment-environment/preprod'
 
     PREPROD_HOST        = 'rocky@qrpay.sitimobile.com'
     PREPROD_HOST_DIR    = '/home/rocky/payBridgeStandalone/'

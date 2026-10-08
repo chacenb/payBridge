@@ -2,7 +2,7 @@
 .idea
 .mvn
 .TRASH
-_deployment_env
+deployment-environment
 _MATERIALS
 docs
 target
