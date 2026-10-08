@@ -45,7 +45,10 @@ Log4j2 RollingFileAppender Example (XML + PROPERTIES config) >>https://howtodoin
 
             <!-- strategy to delete old log files at rolling time | LINK >> How does Log4j2 DefaultRolloverStrategy's max attribute really work?: https://stackoverflow.com/questions/24551768/how-does-log4j2-defaultrolloverstrategys-max-attribute-really-work-->
             <DefaultRolloverStrategy>
-                <Delete basePath="${LOGS_BASE_PATH}" maxDepth="2">
+                <!-- Both conditions must match: only rotated archives of THIS app are ever deleted,
+                     never the live file nor any other file living in the same (host-mounted) folder. -->
+                <Delete basePath="${LOGS_BASE_PATH}" maxDepth="1">
+                    <IfFileName glob="${LOGFILE_NAME}_*.log.gz"/>
                     <IfLastModified age="P${DELETE_LOGS_OLDER_THAN_X_DAYS}D"/>
                 </Delete>
             </DefaultRolloverStrategy>
