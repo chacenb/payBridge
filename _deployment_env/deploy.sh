@@ -37,13 +37,23 @@ if [ ! -f "$ENV_FILE" ]; then
   exit 1
 fi
 
+# Preflight: read-only checks of the server foundation (see DEPLOY-MEMO.md, "Server prerequisites").
+# Nothing is created or changed here. The first missing prerequisite stops the script, before anything
+# is stopped, and says what to fix.
+fail() { echo "FAIL: $1" >&2; echo "      fix: $2" >&2; exit 1; }
+
+echo "==> Preflight"
+docker info >/dev/null 2>&1 || fail "cannot reach the Docker daemon as $(id -un)" "start Docker and add this user to the docker group"
+docker compose version >/dev/null 2>&1 || fail "the docker compose plugin is missing" "install the docker compose plugin"
+[ -f "$COMPOSE_FILE" ] || fail "$COMPOSE_FILE not found" "run the Jenkins job, it ships compose.preprod.yaml"
+
 # Host folder the back's rolling logs are bind-mounted to (see compose.preprod.yaml).
-# Created here so Docker never creates it root-owned, and handed to uid 10001, the
-# non-root user the image runs as (Dockerfile). Files stay world-readable on the host.
 LOGS_DIR="$(grep -E '^PAYBRIDGE_LOGS_DIR=' "$ENV_FILE" | tail -1 | cut -d= -f2- | tr -d '"' || true)"
 LOGS_DIR="${LOGS_DIR:-/mnt/PAYBRIDGELUN/LOGS}"
-mkdir -p "$LOGS_DIR"
-[ "$(id -u)" -eq 0 ] && chown 10001:10001 "$LOGS_DIR"
+[ -d "$LOGS_DIR" ] || fail "log folder $LOGS_DIR does not exist" "create it and give it to the paybridge user (memo)"
+# 10001 = the non-root user the image runs as (Dockerfile) = the host user "paybridge".
+[ "$(stat -c %u "$LOGS_DIR")" = "10001" ] || fail "$LOGS_DIR is not owned by uid 10001" "sudo chown paybridge:paybridge $LOGS_DIR"
+echo "    docker, compose plugin, compose file, log folder: OK"
 
 # Small wrapper so every docker compose call below always targets the right compose file and env file without repeating both flags each time.
 compose() {
