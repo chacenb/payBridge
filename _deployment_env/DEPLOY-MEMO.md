@@ -20,7 +20,7 @@ The job does the following :
 2. Builds both images tagged `<VERSION>` + `latest`,
 3. Pushes all four tags, 
 4. Copies only `compose.preprod.yaml` and `VERSION` to the destination server
-(`deploy.sh` and `logs.sh` already live there -- see One-time setup), 
+(`deploy.sh` and `logs.sh` already live there -- see Server prerequisites), 
 5. Then simply runs the server's own `./deploy.sh`. 
    1. The `deploy.sh` script stops the old stack, 
    2. removes the replaced images, 
