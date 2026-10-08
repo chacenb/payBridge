@@ -20,6 +20,7 @@ Log4j2 RollingFileAppender Example (XML + PROPERTIES config) >>https://howtodoin
         <Property name="LOGFILE_NAME">${env:LOGFILE_NAME:-paybridge.log}</Property>
         <Property name="DELETE_LOGS_OLDER_THAN_X_DAYS">${env:DELETE_LOGS_OLDER_THAN_X_DAYS:-10}</Property>
         <Property name="LOG_FILE_SIZE">${env:LOG_FILE_SIZE:-100 MB}</Property>
+        <Property name="APP_LOG_LEVEL">${env:APP_LOG_LEVEL:-info}</Property>
         <!-- The default lives in its own property: a "}" inside ${env:X:-default} would end the lookup early and mangle the pattern -->
         <Property name="DEFAULT_LOGS_PATTERN">%d{yyyy-MM-dd'T'HH:mm:ss.SSSZ} [%-5p] %c{1.}:%M:%L :: %msg%n%throwable</Property>
         <Property name="LOGS_PATTERN">${env:LOGS_PATTERN:-${DEFAULT_LOGS_PATTERN}}</Property>
@@ -38,7 +39,7 @@ Log4j2 RollingFileAppender Example (XML + PROPERTIES config) >>https://howtodoin
             <PatternLayout pattern="${LOGS_PATTERN}"/>
             <Policies>
                 <OnStartupTriggeringPolicy/>
-                <!-- UNCOMMENT IF NEEDED | <SizeBasedTriggeringPolicy size="${LOG_FILE_SIZE}"/>-->
+                <SizeBasedTriggeringPolicy size="${LOG_FILE_SIZE}"/>
                 <TimeBasedTriggeringPolicy/>
             </Policies>
 
@@ -52,7 +53,7 @@ Log4j2 RollingFileAppender Example (XML + PROPERTIES config) >>https://howtodoin
     </Appenders>
 
     <Loggers>
-        <Logger name="com.sahelys.payBridge" level="info" additivity="false">
+        <Logger name="com.sahelys.payBridge" level="${APP_LOG_LEVEL}" additivity="false">
             <AppenderRef ref="ConsoleAppender"/>
             <AppenderRef ref="FileAppender"/>
         </Logger>
