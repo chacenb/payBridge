@@ -48,8 +48,9 @@ The repo is organised by role, the server folder is flat:
 
 ## Server prerequisites (one-time, by hand)
 
-The scripts **assume all of this exists** and never create it. `deploy.sh` runs a
-read-only preflight and stops with the fix to apply if something is missing.
+The scripts **assume all of this exists** and never create it. The only check is in
+`deploy.sh`: the log folder (#7) must exist and be owned by uid `10001`, verified before
+the old stack is stopped.
 
 | # | Element | Command | Check |
 |---|---|---|---|
