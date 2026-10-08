@@ -37,11 +37,6 @@ services:
         condition: service_healthy
     mem_limit: ${CONTAINER_MEMORY_LIMIT:-512m}
     restart: unless-stopped
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
 
   paybridge-front:
     image: ${PAYBRIDGE_FRONT_IMAGE:?required variable PAYBRIDGE_FRONT_IMAGE is missing a value}:${PAYBRIDGE_VERSION:?required variable PAYBRIDGE_VERSION is read from the VERSION file by deploy.sh/logs.sh}
@@ -50,11 +45,6 @@ services:
       - "${PAYBRIDGE_FRONT_PORT:-9001}:80"
     depends_on:
       - paybridge
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
 
   postgres:
     image: postgres:17-alpine
@@ -72,11 +62,6 @@ services:
       retries: 12
     volumes:
       - postgres-data:/var/lib/postgresql/data
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
 
 volumes:
   postgres-data:

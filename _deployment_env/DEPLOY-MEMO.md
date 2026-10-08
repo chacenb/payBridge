@@ -93,8 +93,7 @@ survives every release (`compose down` never touches it):
 
 `deploy.sh` creates the folder (and chowns it to `10001` when run as root) **before**
 stopping the old stack. `/mnt/PAYBRIDGELUN` itself must already be mounted on
-the host. Docker's own copy of the console output is capped at 3 x 10 MB per
-container.
+the host.
 
 ```bash
 tail -f /mnt/PAYBRIDGELUN/LOGS/paybridge.log
