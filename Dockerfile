@@ -13,6 +13,8 @@ RUN mvn --batch-mode --no-transfer-progress -Dmaven.test.skip=true package
 
 FROM eclipse-temurin:21-jre-jammy
 
+# uid 10001 is a contract: the host runs the same uid as the "paybridge" user, which owns the
+# bind-mounted log folder (see DEPLOY-MEMO.md, server prerequisites). Change both together.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends curl \
     && rm -rf /var/lib/apt/lists/* \
