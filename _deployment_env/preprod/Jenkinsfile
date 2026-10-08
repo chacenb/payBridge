@@ -93,7 +93,7 @@ pipeline {
         sshagent([env.JENKINS_TO_SA_AWS_QRPAY_SITIMOBILE_CREDENTIALS]) {
           sh '''
             scp -o StrictHostKeyChecking=yes $DEPLOY_DIR/compose.preprod.yaml backend/VERSION $PREPROD_HOST:$PREPROD_HOST_DIR/
-            ssh -o StrictHostKeyChecking=yes $PREPROD_HOST "cd $PREPROD_HOST_DIR && ./deploy.sh"
+            ssh -o StrictHostKeyChecking=yes $PREPROD_HOST "cd $PREPROD_HOST_DIR && sudo ./deploy.sh"
           '''
         }
       }
