@@ -19,7 +19,7 @@ set -euo pipefail
 # so the deploy folder can live anywhere and still work with a plain `./deploy.sh`.
 # NOTE: this expects the FLAT layout used on the host -- deploy.sh, compose.preprod.yaml,
 # .env.preprod and VERSION all in one folder. In the repo they are spread out
-# (_deployment_env/, _deployment_env/preprod/, repo root), so run it on the host, not from a checkout.
+# (deployment-environment/, deployment-environment/preprod/, repo root), so run it on the host, not from a checkout.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 COMPOSE_FILE="$SCRIPT_DIR/compose.preprod.yaml"
 ENV_FILE="$SCRIPT_DIR/.env.preprod"
@@ -38,24 +38,12 @@ if [ ! -f "$ENV_FILE" ]; then
 fi
 
 # Host folder the back's rolling logs are bind-mounted to (see compose.preprod.yaml).
-# Prepared HERE, before anything is stopped: if Docker created the missing folder itself it
-# would be root-owned and the container (running as PAYBRIDGE_UID:PAYBRIDGE_GID) could not write to it.
-env_value() { grep -E "^$1=" "$ENV_FILE" | tail -1 | cut -d= -f2- | tr -d '"' || true; }
-LOGS_DIR="$(env_value PAYBRIDGE_LOGS_DIR)"
+# Created here so Docker never creates it root-owned, and handed to uid 10001, the
+# non-root user the image runs as (Dockerfile). Files stay world-readable on the host.
+LOGS_DIR="$(grep -E '^PAYBRIDGE_LOGS_DIR=' "$ENV_FILE" | tail -1 | cut -d= -f2- | tr -d '"' || true)"
 LOGS_DIR="${LOGS_DIR:-/mnt/PAYBRIDGELUN/LOGS}"
-LOGS_UID="$(env_value PAYBRIDGE_UID)"
-LOGS_GID="$(env_value PAYBRIDGE_GID)"
-
-echo "==> Preparing log folder ${LOGS_DIR}"
 mkdir -p "$LOGS_DIR"
-# As root (the pipeline runs `sudo ./deploy.sh`) hand the folder to the user the container runs as.
-if [ "$(id -u)" -eq 0 ] && [ -n "$LOGS_UID" ] && [ -n "$LOGS_GID" ]; then
-  chown "$LOGS_UID:$LOGS_GID" "$LOGS_DIR"
-fi
-if [ ! -w "$LOGS_DIR" ] && [ "$(id -u)" -ne 0 ]; then
-  echo "Error: $LOGS_DIR is not writable by $(id -un) -- fix its ownership or run with sudo." >&2
-  exit 1
-fi
+[ "$(id -u)" -eq 0 ] && chown 10001:10001 "$LOGS_DIR"
 
 # Small wrapper so every docker compose call below always targets the right compose file and env file without repeating both flags each time.
 compose() {

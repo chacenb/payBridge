@@ -39,10 +39,10 @@ The repo is organised by role, the server folder is flat:
 | Repo | Server (`PREPROD_HOST_DIR`) | Who puts it there |
 |---|---|---|
 | `VERSION` (repo root) | `VERSION` | Jenkins, every release |
-| `_deployment_env/preprod/compose.preprod.yaml` | `compose.preprod.yaml` | Jenkins, every release |
-| `_deployment_env/deploy.sh` | `deploy.sh` | by hand, once |
-| `_deployment_env/logs.sh` | `logs.sh` | by hand, once (optional) |
-| `_deployment_env/preprod/.env.preprod.example` | `.env.preprod` | by hand (secret, never committed) |
+| `deployment-environment/preprod/compose.preprod.yaml` | `compose.preprod.yaml` | Jenkins, every release |
+| `deployment-environment/deploy.sh` | `deploy.sh` | by hand, once |
+| `deployment-environment/logs.sh` | `logs.sh` | by hand, once (optional) |
+| `deployment-environment/preprod/.env.preprod.example` | `.env.preprod` | by hand (secret, never committed) |
 
 `deploy.sh` resolves everything next to itself, so it only works in the flat server layout.
 
@@ -56,10 +56,9 @@ The repo is organised by role, the server folder is flat:
   is private; in its `.env.preprod`, `PAYBRIDGE_IMAGE` and
   `PAYBRIDGE_FRONT_IMAGE` are **repository only, no `:tag`** (the tag comes
   from `VERSION`).
-- **Server logs**: `/mnt/PAYBRIDGELUN` mounted; in `.env.preprod` set
-  `PAYBRIDGE_UID` / `PAYBRIDGE_GID` (compose refuses to start without them) and
-  optionally `PAYBRIDGE_LOGS_DIR`, `LOGFILE_NAME`, `DELETE_LOGS_OLDER_THAN_X_DAYS`,
-  `LOG_FILE_SIZE`, `APP_LOG_LEVEL` (see `.env.preprod.example`). Re-copy
+- **Server logs**: `/mnt/PAYBRIDGELUN` mounted. The log settings in
+  `.env.preprod` (`PAYBRIDGE_LOGS_DIR`, `LOGFILE_NAME`, `DELETE_LOGS_OLDER_THAN_X_DAYS`,
+  `LOG_FILE_SIZE`, `APP_LOG_LEVEL`) are optional, they all have defaults. Re-copy
   `deploy.sh` after any change to it -- the pipeline never overwrites it.
 - **Server scripts**: copy `deploy.sh` (and `logs.sh`, optional) to the deploy
   folder **by hand, once**, then `chmod +x deploy.sh logs.sh`. The pipeline
@@ -90,9 +89,9 @@ survives every release (`compose down` never touches it):
 | Rotation | daily, at every app start, and past `LOG_FILE_SIZE`; archives are `paybridge.log_<yyyyMMdd>-<n>.log.gz` |
 | Cleanup | rotated archives older than `DELETE_LOGS_OLDER_THAN_X_DAYS` are deleted -- only those, nothing else in the folder |
 | Level | `APP_LOG_LEVEL` (restart to change; no rebuild) |
-| Owner | the container runs as `PAYBRIDGE_UID:PAYBRIDGE_GID` (`id -u` / `id -g` of the deploy user), so the files are not root-owned |
+| Owner | uid `10001` (the image's non-root user); files are world-readable, deleting them by hand needs `sudo` |
 
-`deploy.sh` creates the folder (and chowns it when run as root) **before**
+`deploy.sh` creates the folder (and chowns it to `10001` when run as root) **before**
 stopping the old stack. `/mnt/PAYBRIDGELUN` itself must already be mounted on
 the host. Docker's own copy of the console output is capped at 3 x 10 MB per
 container.

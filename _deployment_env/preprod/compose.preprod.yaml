@@ -2,9 +2,6 @@ services:
   paybridge:
     image: ${PAYBRIDGE_IMAGE:?required variable PAYBRIDGE_IMAGE is missing a value}:${PAYBRIDGE_VERSION:?required variable PAYBRIDGE_VERSION is read from the VERSION file by deploy.sh/logs.sh}
     container_name: paybridge-standalone-back
-    # Run as the deploy user (ids in .env.preprod) so the log files on the host are owned by
-    # that user, not root, and stay readable/rotatable without sudo.
-    user: "${PAYBRIDGE_UID:?PAYBRIDGE_UID is required (id -u of the deploy user)}:${PAYBRIDGE_GID:?PAYBRIDGE_GID is required (id -g of the deploy user)}"
     volumes:
       # Logs persist on the host and survive every `compose down` of a release.
       - ${PAYBRIDGE_LOGS_DIR:-/mnt/PAYBRIDGELUN/LOGS}:/app/logs
