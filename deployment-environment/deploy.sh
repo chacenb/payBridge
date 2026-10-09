@@ -25,7 +25,7 @@ COMPOSE_FILE="$SCRIPT_DIR/compose.preprod.yaml"
 ENV_FILE="$SCRIPT_DIR/.env.preprod"
 
 # The single source of truth 'VERSION' file (lives at the backend repo root, shipped next to this script by CI)
-# For a manual rollback, pass a version as the first argument to this script, e.g. `./deploy.sh 1.2.3`.
+# For a manual rollback, pass a version as the first argument to this script, (e.g. `./deploy.sh 1.2.3`)
 PAYBRIDGE_ROLLBACK_VERSION="${1:-}"
 PAYBRIDGE_VERSION="${PAYBRIDGE_ROLLBACK_VERSION:-$(tr -d '[:space:]' < "$SCRIPT_DIR/VERSION")}"
 export PAYBRIDGE_VERSION
@@ -37,8 +37,8 @@ if [ ! -f "$ENV_FILE" ]; then
   exit 1
 fi
 
-# The log folder is a server prerequisite (DEPLOY-MEMO.md). Checked BEFORE `compose down`: a missing or
-# wrongly owned folder would otherwise only show up after the old stack is stopped, as a crashing back.
+# The backend log folder is a server prerequisite (DEPLOY-MEMO.md). Checked BEFORE `compose down`:
+# A missing or wrongly owned folder would otherwise only show up after the old stack is stopped, as a crashing back.
 # uid 10001 = the non-root user of the image (Dockerfile) = the host user "paybridge".
 LOGS_DIR="$(grep -E '^PAYBRIDGE_LOGS_DIR=' "$ENV_FILE" | tail -1 | cut -d= -f2- | tr -d '"' || true)"
 LOGS_DIR="${LOGS_DIR:-/mnt/PAYBRIDGELUN/LOGS}"
