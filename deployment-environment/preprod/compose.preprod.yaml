@@ -2,9 +2,6 @@ services:
   paybridge:
     image: ${PAYBRIDGE_IMAGE:?required variable PAYBRIDGE_IMAGE is missing a value}:${PAYBRIDGE_VERSION:?required variable PAYBRIDGE_VERSION is read from the VERSION file by deploy.sh/logs.sh}
     container_name: paybridge-standalone-back
-    volumes:
-      # Logs persist on the host and survive every `compose down` of a release.
-      - ${PAYBRIDGE_LOGS_DIR:-/mnt/PAYBRIDGELUN/LOGS}:/app/logs
     ports:
       - "${PAYBRIDGE_PORT:-9000}:${SERVER_PORT:-9000}"
     environment:
@@ -24,14 +21,16 @@ services:
       MOMO_PAYMENT_ENDPOINT: ${MOMO_PAYMENT_ENDPOINT:-/APIRequestMgrService}
       MOMO_SYNC_ENDPOINT: ${MOMO_SYNC_ENDPOINT:-/SYNCAPIRequestMgrService}
       MOOV_TLS_VERIFY: ${MOOV_TLS_VERIFY:-false}
-      # Logging (read by log4j2.xml). LOGS_BASE_PATH is the path INSIDE the container and must
-      # match the bind mount target below, so it is not configurable; LOGS_PATTERN is
-      # deliberately not forwarded (its "}" breaks compose interpolation) -- log4j2.xml has the default.
+      # Logging (read by log4j2.xml). LOGS_BASE_PATH is the path INSIDE the container.
+      # Must match the bind mount target volume below 'PAYBRIDGE_LOGS_DIR'.
       LOGS_BASE_PATH: /app/logs
       LOGFILE_NAME: ${LOGFILE_NAME:-paybridge.log}
       DELETE_LOGS_OLDER_THAN_X_DAYS: ${DELETE_LOGS_OLDER_THAN_X_DAYS:-10}
       LOG_FILE_SIZE: ${LOG_FILE_SIZE:-100 MB}
       APP_LOG_LEVEL: ${APP_LOG_LEVEL:-info}
+    volumes:
+      # Logs persist on the host and survive every `compose down` of a release.
+      - ${PAYBRIDGE_LOGS_DIR:-/mnt/PAYBRIDGELUN/LOGS}:/app/logs
     depends_on:
       postgres:
         condition: service_healthy
